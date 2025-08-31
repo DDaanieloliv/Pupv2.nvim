@@ -346,77 +346,98 @@ local function move_buffer_backward()
 	vim.notify(string.format("Buffer movido para a posição %d", current_index - 1), vim.log.levels.INFO)
 end
 
--- Funções principais
+
 function M.buffer_completion(arg_lead, cmd_line, cursor_pos)
-	local completions = {}
-	local buffers = get_buffers_with_numbers()
+    local completions = {}
+    local buffers = get_buffers_with_numbers()
 
-	for _, buf in ipairs(buffers) do
-		local completion_item = string.format("%d:%s", buf.number, buf.name)
-		table.insert(completions, completion_item)
-	end
+    for _, buf in ipairs(buffers) do
+        -- Encurta o path para mostrar apenas as últimas 2-3 pastas
+        local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+        local completion_item = string.format("%d: %s", buf.number, short_path)
+        table.insert(completions, completion_item)
+    end
 
-	if arg_lead ~= "" then
-		return vim.tbl_filter(function(item)
-			return item:lower():match('^' .. arg_lead:lower())
-		end, completions)
-	end
+    if arg_lead ~= "" then
+        return vim.tbl_filter(function(item)
+            return item:lower():match('^' .. arg_lead:lower())
+        end, completions)
+    end
 
-	return completions
+    return completions
 end
+
+
+
+
 
 function M.buffer_command(args)
+    -- Verifica se args é uma string (quando chamado via comando)
+    if type(args) == "string" then
+        args = {args = args}
+    end
 
-	local buffers = get_buffers_with_numbers()
+    args = args or {}
+    local target_arg = args.args or ""
+    local buffers = get_buffers_with_numbers()
 
-	if args.args == "" then
-		print("Buffers :")
-		for _, buf in ipairs(buffers) do
-			local status = buf.is_open and "{Open}  " or "{Close} "
-			print(string.format("  %s[%d] %s - %s", status, buf.number, buf.name, buf.path))
-		end
-		return
-	end
+    if target_arg == "" then
+        print("Buffers:")
+        for _, buf in ipairs(buffers) do
+            local status = buf.is_open and "* " or "_"
+            -- Encurta o path da mesma forma que na completion
+            local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+            print(string.format("  %s[%d] %s", status, buf.number, short_path))
+        end
+        return
+    end
 
-	local target = args.args
-	local num = tonumber(target)
-	local found_buffer = nil
+    local target = target_arg
+    local num = tonumber(target)
+    local found_buffer = nil
 
-	if num and buffers[num] then
-		found_buffer = buffers[num]
-	else
-		local number_part = target:match("^(%d+):")
-		if number_part then
-			num = tonumber(number_part)
-			if num and buffers[num] then
-				found_buffer = buffers[num]
-			end
-		else
-			for _, buf in ipairs(buffers) do
-				if target == buf.name then
-					found_buffer = buf
-					break
-				end
-			end
-		end
-	end
+    if num and buffers[num] then
+        found_buffer = buffers[num]
+    else
+        local number_part = target:match("^(%d+):")
+        if number_part then
+            num = tonumber(number_part)
+            if num and buffers[num] then
+                found_buffer = buffers[num]
+            end
+        else
+            for _, buf in ipairs(buffers) do
+                if target == buf.name then
+                    found_buffer = buf
+                    break
+                end
+            end
+        end
+    end
 
-	if found_buffer then
-		if vim.fn.filereadable(found_buffer.path) == 1 then
-			local existing_buf = find_buffer_by_path(found_buffer.path)
-			if existing_buf then
-				vim.cmd('buffer ' .. existing_buf)
-			else
-				vim.cmd('edit ' .. vim.fn.fnameescape(found_buffer.path))
-			end
-		else
-			vim.notify("Arquivo não encontrado: " .. found_buffer.path, vim.log.levels.ERROR)
-			remove_buffer_from_cache(found_buffer.path, true)
-		end
-	else
-		vim.notify("Buffer não encontrado: " .. target, vim.log.levels.WARN)
-	end
+    if found_buffer then
+        if vim.fn.filereadable(found_buffer.path) == 1 then
+            local existing_buf = find_buffer_by_path(found_buffer.path)
+            if existing_buf then
+                vim.cmd('buffer ' .. existing_buf)
+            else
+                vim.cmd('edit ' .. vim.fn.fnameescape(found_buffer.path))
+            end
+        else
+            vim.notify("Arquivo não encontrado: " .. found_buffer.path, vim.log.levels.ERROR)
+            remove_buffer_from_cache(found_buffer.path, true)
+        end
+    else
+        vim.notify("Buffer não encontrado: " .. target, vim.log.levels.WARN)
+    end
 end
+
+
+
+
+
+
+
 
 function M.list_buffers()
 	local buffers = get_buffers_with_numbers()
