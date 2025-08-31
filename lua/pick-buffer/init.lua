@@ -348,95 +348,240 @@ end
 
 
 function M.buffer_completion(arg_lead, cmd_line, cursor_pos)
-    local completions = {}
-    local buffers = get_buffers_with_numbers()
+	local completions = {}
+	local buffers = get_buffers_with_numbers()
 
-    for _, buf in ipairs(buffers) do
-        -- Encurta o path para mostrar apenas as últimas 2-3 pastas
-        local short_path = vim.fn.fnamemodify(buf.path, ":~:")
-        local completion_item = string.format("%d: %s", buf.number, short_path)
-        table.insert(completions, completion_item)
-    end
+	for _, buf in ipairs(buffers) do
+		-- Encurta o path para mostrar apenas as últimas 2-3 pastas
+		local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+		local completion_item = string.format("%d: %s", buf.number, short_path)
+		table.insert(completions, completion_item)
+	end
 
-    if arg_lead ~= "" then
-        return vim.tbl_filter(function(item)
-            return item:lower():match('^' .. arg_lead:lower())
-        end, completions)
-    end
+	if arg_lead ~= "" then
+		return vim.tbl_filter(function(item)
+			return item:lower():match('^' .. arg_lead:lower())
+		end, completions)
+	end
 
-    return completions
+	return completions
 end
-
-
-
-
 
 function M.buffer_command(args)
-    -- Verifica se args é uma string (quando chamado via comando)
-    if type(args) == "string" then
-        args = {args = args}
-    end
+	-- Verifica se args é uma string (quando chamado via comando)
+	if type(args) == "string" then
+		args = { args = args }
+	end
 
-    args = args or {}
-    local target_arg = args.args or ""
-    local buffers = get_buffers_with_numbers()
+	args = args or {}
+	local target_arg = args.args or ""
 
-    if target_arg == "" then
-        print("Buffers:")
-        for _, buf in ipairs(buffers) do
-            local status = buf.is_open and "* " or "_"
-            -- Encurta o path da mesma forma que na completion
-            local short_path = vim.fn.fnamemodify(buf.path, ":~:")
-            print(string.format("  %s[%d] %s", status, buf.number, short_path))
-        end
-        return
-    end
+	-- local buffers = get_buffers_with_numbers()
+	--
+	-- if target_arg == "" then
+	--     print("Buffers:")
+	--     for _, buf in ipairs(buffers) do
+	--         local status = buf.is_open and "* " or "_"
+	--         -- Encurta o path da mesma forma que na completion
+	--         local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+	--         local filename = vim.fn.fnamemodify(buf.path, ":t")
+	--         local path_without_filename = short_path:sub(1, #short_path - #filename)
+	--
+	--         -- Imprime com highlight para o nome do arquivo
+	--         print(string.format("  %s[%d] %s", status, buf.number, path_without_filename) ..
+	--               "" .. filename .. " ")
+	--     end
+	--     return
+	-- end
 
-    local target = target_arg
-    local num = tonumber(target)
-    local found_buffer = nil
+	if target_arg == "" then
+		-- Mostra a janela flutuante em vez de imprimir no terminal
+		M.show_buffers_in_float()
+		return
+	end
 
-    if num and buffers[num] then
-        found_buffer = buffers[num]
-    else
-        local number_part = target:match("^(%d+):")
-        if number_part then
-            num = tonumber(number_part)
-            if num and buffers[num] then
-                found_buffer = buffers[num]
-            end
-        else
-            for _, buf in ipairs(buffers) do
-                if target == buf.name then
-                    found_buffer = buf
-                    break
-                end
-            end
-        end
-    end
+	local buffers = get_buffers_with_numbers()
 
-    if found_buffer then
-        if vim.fn.filereadable(found_buffer.path) == 1 then
-            local existing_buf = find_buffer_by_path(found_buffer.path)
-            if existing_buf then
-                vim.cmd('buffer ' .. existing_buf)
-            else
-                vim.cmd('edit ' .. vim.fn.fnameescape(found_buffer.path))
-            end
-        else
-            vim.notify("Arquivo não encontrado: " .. found_buffer.path, vim.log.levels.ERROR)
-            remove_buffer_from_cache(found_buffer.path, true)
-        end
-    else
-        vim.notify("Buffer não encontrado: " .. target, vim.log.levels.WARN)
-    end
+
+	local target = target_arg
+	local num = tonumber(target)
+	local found_buffer = nil
+
+	if num and buffers[num] then
+		found_buffer = buffers[num]
+	else
+		local number_part = target:match("^(%d+):")
+		if number_part then
+			num = tonumber(number_part)
+			if num and buffers[num] then
+				found_buffer = buffers[num]
+			end
+		else
+			for _, buf in ipairs(buffers) do
+				if target == buf.name then
+					found_buffer = buf
+					break
+				end
+			end
+		end
+	end
+
+	if found_buffer then
+		if vim.fn.filereadable(found_buffer.path) == 1 then
+			local existing_buf = find_buffer_by_path(found_buffer.path)
+			if existing_buf then
+				vim.cmd('buffer ' .. existing_buf)
+			else
+				vim.cmd('edit ' .. vim.fn.fnameescape(found_buffer.path))
+			end
+		else
+			vim.notify("Arquivo não encontrado: " .. found_buffer.path, vim.log.levels.ERROR)
+			remove_buffer_from_cache(found_buffer.path, true)
+		end
+	else
+		vim.notify("Buffer não encontrado: " .. target, vim.log.levels.WARN)
+	end
 end
 
+function M.show_buffers_in_float()
+	local buffers = get_buffers_with_numbers()
 
+	-- Conteúdo da janela flutuante
+	-- local lines = {"Buffers:"}
+	local lines = {}
+	for _, buf in ipairs(buffers) do
+		local status = buf.is_open and "·" or "_"
+		-- Encurta o path da mesma forma que na completion
+		local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+		local filename = vim.fn.fnamemodify(buf.path, ":t")
+		local path_without_filename = short_path:sub(1, #short_path - #filename)
 
+		local line = string.format("  %s%d: %s%s", status, buf.number, path_without_filename, filename)
+		table.insert(lines, line)
+	end
 
+	-- Calcular largura dinâmica baseada no conteúdo
+	local max_line_length = 0
+	for _, line in ipairs(lines) do
+		if #line > max_line_length then
+			max_line_length = #line
+		end
+	end
 
+	-- Configurações da janela flutuante - CANTO INFERIOR ESQUERDO
+	local width = math.min(max_line_length + 2, 80)   -- Largura dinâmica com limite máximo
+	local height = #lines
+	local row = vim.o.lines - height - 1              -- Canto inferior
+	local col = 0                                     -- Canto esquerdo (colado na borda)
 
+	-- Criar buffer flutuante
+	local buf = vim.api.nvim_create_buf(false, true)
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = 'editor',
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = 'minimal',
+		-- border = 'single',
+		-- title = 'Buffer List',
+		-- title_pos = 'left'
+		border = {
+			{ "╭", "FloatBorder" },
+			{ "─", "FloatBorder" },
+			{ "╮", "FloatBorder" },
+			{ "│", "FloatBorder" },
+			{ "╯", "FloatBorder" },
+			{ "─", "FloatBorder" },
+			{ "╰", "FloatBorder" },
+			{ "│", "FloatBorder" },
+		},
+		-- Título na parte inferior direita
+		title = {
+			{ " Buffers ", "FloatTitle" }
+		},
+		title_pos = "left",     -- Título à direita
+		footer = {
+			{ " Use 1-9, Enter, q/ESC ", "FloatFooter" }
+		},
+		footer_pos = "left",     -- Footer à esquerda
+		-- })
+	})
+
+	-- Configurar o buffer
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+	vim.api.nvim_buf_set_option(buf, 'filetype', 'bufferlist')
+
+	-- CONFIGURAÇÕES DE HIGHLIGHT PARA A JANELA FLUTUANTE
+	-- Definir highlight personalizado para CursorLine
+	vim.cmd([[
+				highlight FloatCursorLine guibg=#16181c
+				]])
+
+	-- Aplicar o highlight da linha do cursor
+	vim.api.nvim_win_set_option(win, 'cursorline', true)  -- Ativa cursorline
+	vim.api.nvim_win_set_option(win, 'cursorlineopt', 'both')  -- Destaca linha e número
+	vim.api.nvim_win_set_option(win, 'winhighlight', 'CursorLine:FloatCursorLine')
+
+	-- Adicionar highlights personalizados (opcional)
+	vim.cmd([[
+				highlight FloatBorder guifg=#504945
+				highlight FloatTitle guifg=#a89984 guibg=none " guibg=#504945
+				highlight FloatFooter guifg=#a89984 guibg=none " guibg=#3c3836
+				]])
+
+	-- Mapeamentos para fechar a janela
+	vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':q<CR>', { noremap = true, silent = true })
+	vim.api.nvim_buf_set_keymap(buf, 'n', '<ESC>', ':q<CR>', { noremap = true, silent = true })
+
+	-- Mapeamentos para selecionar buffer
+	for i = 1, #buffers do
+		if i <= 9 then     -- Apenas teclas 1-9
+			vim.api.nvim_buf_set_keymap(buf, 'n', tostring(i),
+				':lua require("pick-buffer")._select_buffer(' .. i .. ')<CR>',
+				{ noremap = true, silent = true })
+		end
+	end
+
+	-- Mapeamento para selecionar com Enter
+	vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>',
+		':lua require("pick-buffer")._select_current_buffer()<CR>',
+		{ noremap = true, silent = true })
+
+	-- Salvar referência da janela flutuante para fechar depois
+	M._float_win = win
+end
+
+-- Função auxiliar para selecionar buffer
+function M._select_buffer(buffer_number)
+	if M._float_win and vim.api.nvim_win_is_valid(M._float_win) then
+		vim.api.nvim_win_close(M._float_win, true)
+	end
+	M.buffer_command(tostring(buffer_number))
+end
+
+-- Função para selecionar buffer da linha atual
+-- function M._select_current_buffer()
+-- 	local line = vim.api.nvim_get_current_line()
+-- 	-- Extrai o número do buffer da linha (ex: "* [1] path")
+-- 	local buffer_number = line:match('%[(%d+)%]')
+--
+-- 	if buffer_number then
+-- 		M._select_buffer(tonumber(buffer_number))
+-- 	end
+-- end
+
+-- Função para selecionar buffer da linha atual
+function M._select_current_buffer()
+	local line = vim.api.nvim_get_current_line()
+	-- Extrai o número do buffer da linha (novo formato: "·1: path")
+	local buffer_number = line:match('%s*[%*_]%s*(%d+):')
+
+	if buffer_number then
+		M._select_buffer(tonumber(buffer_number))
+	end
+end
 
 
 function M.list_buffers()
@@ -484,6 +629,8 @@ end
 function M.setup_keymaps()
 	local keymaps = M.config.keymaps
 
+	vim.keymap.set('n', '<leader>bf', M.show_buffers_in_float, { desc = 'Mostrar buffers em janela flutuante' })
+
 	vim.keymap.set("n", keymaps.list_buffers, M.list_buffers, { desc = "Listar buffers (com cache)" })
 	vim.keymap.set("n", keymaps.move_backward, move_buffer_backward, { desc = "Mover buffer para trás na lista" })
 	vim.keymap.set("n", keymaps.move_forward, move_buffer_forward, { desc = "Mover buffer para frente na lista" })
@@ -502,8 +649,35 @@ function M.setup_keymaps()
 	vim.keymap.set("n", keymaps.remove_last, remove_last_buffer_from_cache, { desc = "Remover último buffer do cache" })
 	vim.keymap.set("n", keymaps.clear_cache, clear_cache, { desc = "Limpar todo o cache de buffers" })
 
+	-- for i = 1, 9 do
+	-- 	vim.keymap.set("n", "<A-" .. i .. ">", function()
+	-- 		local buffers = get_buffers_with_numbers()
+	-- 		if buffers[i] then
+	-- 			M.buffer_command({ args = tostring(i) })
+	-- 		else
+	-- 			vim.notify("Não há buffer na posição " .. i, vim.log.levels.WARN)
+	-- 		end
+	-- 	end, { desc = "Abrir buffer " .. i .. " do cache" })
+	-- end
+
 	for i = 1, 9 do
 		vim.keymap.set("n", "<A-" .. i .. ">", function()
+			-- Verifica se o buffer atual é "[Rascunho]" e fecha a tab
+			local current_buf = vim.api.nvim_get_current_buf()
+			local buf_name = vim.api.nvim_buf_get_name(current_buf)
+
+			-- Se for um buffer sem nome (rascunho) e não for a única aba
+			if buf_name == "" then
+				local tab_count = vim.fn.tabpagenr('$')  -- Número total de abas
+				if tab_count > 1 then  -- Só fecha se houver mais de uma aba
+					vim.cmd("tabclose")
+				else
+					-- Se for a única aba, apenas fecha o buffer rascunho
+					vim.cmd("bd!")
+				end
+			end
+
+			-- Abre o buffer normalmente
 			local buffers = get_buffers_with_numbers()
 			if buffers[i] then
 				M.buffer_command({ args = tostring(i) })
@@ -512,11 +686,11 @@ function M.setup_keymaps()
 			end
 		end, { desc = "Abrir buffer " .. i .. " do cache" })
 	end
+
 end
 
 -- Autocommands
 function M.setup_autocmds()
-
 	-- Id group
 	local augroup = vim.api.nvim_create_augroup("PickBufferAutoCmds", {})
 
@@ -528,7 +702,6 @@ function M.setup_autocmds()
 		-- api do lua não entenderia como ler essa tabela visto que se não usassemos a
 		-- keyword 'callback' a função seria considerada um indice.
 		callback = function(args)
-
 			-- O parâmetro 'args' é Tabela que o Neovim passa automaticamente para a callback
 			-- quando o evento ocorre. args.buf contém o número do buffer onde o evento aconteceu.
 			local buf = args.buf
@@ -542,7 +715,6 @@ function M.setup_autocmds()
 		group = augroup,
 
 		callback = function()
-
 			local cache_data = load_cache()
 			local current_path = get_current_path()
 			if cache_data[current_path] then
