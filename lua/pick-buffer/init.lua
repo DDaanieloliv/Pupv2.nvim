@@ -367,6 +367,157 @@ function M.buffer_completion(arg_lead, cmd_line, cursor_pos)
 	return completions
 end
 
+
+
+
+
+
+
+
+-- function M.show_buffers_in_float()
+--     local buffers = get_buffers_with_numbers()
+--     
+--     -- Primeiro, criar uma janela de input para o filtro
+--     vim.ui.input({
+--         prompt = "Filtrar buffers: ",
+--         default = "",
+--         completion = "file",
+--     }, function(input)
+--         if input == nil then return end  -- Usuário pressionou ESC
+--         
+--         -- Filtrar buffers baseado no input
+--         local filtered_buffers = {}
+--         if input == "" then
+--             filtered_buffers = buffers
+--         else
+--             for _, buf in ipairs(buffers) do
+--                 if buf.name:lower():find(input:lower(), 1, true) or 
+--                    buf.path:lower():find(input:lower(), 1, true) then
+--                     table.insert(filtered_buffers, buf)
+--                 end
+--             end
+--         end
+--         
+--         -- Agora mostrar a janela flutuante com os buffers filtrados
+--         M._show_filtered_buffers(filtered_buffers, input)
+--     end)
+-- end
+--
+-- function M._show_filtered_buffers(buffers, filter_text)
+--     -- Conteúdo da janela flutuante
+--     local lines = {}
+--     for _, buf in ipairs(buffers) do
+--         local status = buf.is_open and "·" or "_"
+--         local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+--         local filename = vim.fn.fnamemodify(buf.path, ":t")
+--         local path_without_filename = short_path:sub(1, #short_path - #filename)
+--
+--         local line = string.format("  %s%d: %s%s", status, buf.number, path_without_filename, filename)
+--         table.insert(lines, line)
+--     end
+--
+--     -- Calcular largura dinâmica
+--     local max_line_length = 0
+--     for _, line in ipairs(lines) do
+--         if #line > max_line_length then
+--             max_line_length = #line
+--         end
+--     end
+--
+--     -- Configurações da janela flutuante
+--     local width = math.min(max_line_length + 2, 80)
+--     local height = #lines
+--     local row = vim.o.lines - height - 1
+--     local col = 0
+--
+--     -- Criar buffer flutuante
+--     local buf = vim.api.nvim_create_buf(false, true)
+--     local win = vim.api.nvim_open_win(buf, true, {
+--         relative = 'editor',
+--         width = width,
+--         height = height,
+--         row = row,
+--         col = col,
+--         style = 'minimal',
+--         border = {
+--             { "╭", "FloatBorder" },
+--             { "─", "FloatBorder" },
+--             { "╮", "FloatBorder" },
+--             { "│", "FloatBorder" },
+--             { "╯", "FloatBorder" },
+--             { "─", "FloatBorder" },
+--             { "╰", "FloatBorder" },
+--             { "│", "FloatBorder" },
+--         },
+--         -- Título com o texto do filtro
+--         title = {
+--             { " Filter: " .. (filter_text or ""), "FloatTitle" }
+--         },
+--         title_pos = "left",
+--         footer = {
+--             { " Use 1-9, Enter, q/ESC ", "FloatFooter" }
+--         },
+--         footer_pos = "left",
+--     })
+--
+--     -- Configurar o buffer
+--     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+--     vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+--     vim.api.nvim_buf_set_option(buf, 'filetype', 'bufferlist')
+--
+--     -- Configurações de highlight
+--     vim.cmd([[
+--         highlight FloatCursorLine guibg=#16181c
+--         highlight FloatBorder guifg=#504945
+--         highlight FloatTitle guifg=#a89984 guibg=none
+--         highlight FloatFooter guifg=#a89984 guibg=none
+--     ]])
+--
+--     vim.api.nvim_win_set_option(win, 'cursorline', true)
+--     vim.api.nvim_win_set_option(win, 'cursorlineopt', 'both')
+--     vim.api.nvim_win_set_option(win, 'winhighlight', 'CursorLine:FloatCursorLine')
+--
+--     -- Mapeamentos
+--     vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':q<CR>', { noremap = true, silent = true })
+--     vim.api.nvim_buf_set_keymap(buf, 'n', '<ESC>', ':q<CR>', { noremap = true, silent = true })
+--     
+--     -- Mapeamento para reabrir o filtro
+--     vim.api.nvim_buf_set_keymap(buf, 'n', '<C-f>', 
+--         ':lua require("pick-buffer")._reopen_filter()<CR>',
+--         { noremap = true, silent = true })
+--
+--     -- Mapeamentos para selecionar buffer
+--     for i, buf_item in ipairs(buffers) do
+--         if buf_item.number <= 9 then
+--             vim.api.nvim_buf_set_keymap(buf, 'n', tostring(buf_item.number), 
+--                 ':lua require("pick-buffer")._select_buffer(' .. buf_item.number .. ')<CR>', 
+--                 { noremap = true, silent = true })
+--         end
+--     end
+--
+--     vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', 
+--         ':lua require("pick-buffer")._select_current_buffer()<CR>',
+--         { noremap = true, silent = true })
+--
+--     -- Salvar referências
+--     M._float_win = win
+--     M._float_buf = buf
+--     M._current_filter = filter_text
+-- end
+--
+-- -- Função para reabrir o filtro
+-- function M._reopen_filter()
+--     if M._float_win and vim.api.nvim_win_is_valid(M._float_win) then
+--         vim.api.nvim_win_close(M._float_win, true)
+--     end
+--     M.show_buffers_in_float()
+-- end
+
+
+
+
+
+
 function M.buffer_command(args)
 	-- Verifica se args é uma string (quando chamado via comando)
 	if type(args) == "string" then
@@ -443,6 +594,8 @@ function M.buffer_command(args)
 	end
 end
 
+
+
 function M.show_buffers_in_float()
 	local buffers = get_buffers_with_numbers()
 
@@ -498,13 +651,14 @@ function M.show_buffers_in_float()
 		},
 		-- Título na parte inferior direita
 		title = {
-			{ " Buffers ", "FloatTitle" }
+			{ " Buffers ", "FloatTitle" }
 		},
 		title_pos = "left",     -- Título à direita
-		footer = {
-			{ " Use 1-9, Enter, q/ESC ", "FloatFooter" }
-		},
-		footer_pos = "left",     -- Footer à esquerda
+		-- footer = {
+		-- 	{ " ...  ", "FloatFooter" }
+		-- 	-- { " Use 1-9, Enter, q/ESC ", "FloatFooter" }
+		-- },
+		-- footer_pos = "left",     -- Footer à esquerda
 		-- })
 	})
 
@@ -552,6 +706,11 @@ function M.show_buffers_in_float()
 	-- Salvar referência da janela flutuante para fechar depois
 	M._float_win = win
 end
+
+
+
+
+
 
 -- Função auxiliar para selecionar buffer
 function M._select_buffer(buffer_number)
