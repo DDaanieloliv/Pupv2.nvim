@@ -389,7 +389,7 @@ function M.test_title_input()
 		"Digite no título acima ↑",
 		"",
 		"Backspace: apagar",
-		"Enter: confirmar", 
+		"Enter: confirmar",
 		"ESC: sair"
 	})
 
@@ -416,8 +416,8 @@ function M.test_title_input()
 			vim.notify("Confirmado: " .. table.concat(query), vim.log.levels.INFO)
 			break
 		elseif is_backspace then -- Backspace
-			if #query > 0 then 
-				table.remove(query) 
+			if #query > 0 then
+				table.remove(query)
 				update_title()
 			end
 		elseif char:match('^[%g%s]$') then -- Caracteres normais
@@ -514,6 +514,10 @@ end
 
 
 
+
+
+
+
 function M.show_buffers_in_float()
 	local buffers = get_buffers_with_numbers()
 
@@ -541,7 +545,8 @@ function M.show_buffers_in_float()
 
 	-- Configurações da janela flutuante - CANTO INFERIOR ESQUERDO
 	local width = math.min(max_line_length + 2, 80)   -- Largura dinâmica com limite máximo
-	local height = #lines
+	-- local height = #lines
+	local height = 25
 	local row = vim.o.lines - height - 1              -- Canto inferior
 	local col = 0                                     -- Canto esquerdo (colado na borda)
 
@@ -559,9 +564,6 @@ function M.show_buffers_in_float()
 		row = row,
 		col = col,
 		style = 'minimal',
-		-- border = 'single',
-		-- title = 'Buffer List',
-		-- title_pos = 'left'
 		border = {
 			{ "╭", "FloatBorder" },
 			{ "─", "FloatBorder" },
@@ -579,12 +581,9 @@ function M.show_buffers_in_float()
 		title_pos = "left",     -- Título à direita
 		footer = {
 			{ " Buffers ", "FloatFooter" }
-			-- { " Use 1-9, Enter, q/ESC ", "FloatFooter" }
 		},
-		-- footer_pos = "left",     -- Footer à esquerda
-		-- })
+		footer_pos = "left",     -- Footer à esquerda
 	})
-
 
 
 	-- Configurar o buffer
@@ -610,11 +609,11 @@ function M.show_buffers_in_float()
 				highlight FloatFooter guifg=#a89984 guibg=none " guibg=#3c3836
 				]])
 
-	-- Mapeamentos para fechar a janela
-	vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':q<CR>', { noremap = true, silent = true })
-	vim.api.nvim_buf_set_keymap(buf, 'n', '<ESC>', ':q<CR>', { noremap = true, silent = true })
-
-	-- Mapeamentos para selecionar buffer
+	-- -- Mapeamentos para fechar a janela
+	-- vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':q<CR>', { noremap = true, silent = true })
+	-- vim.api.nvim_buf_set_keymap(buf, 'n', '<ESC>', ':q<CR>', { noremap = true, silent = true })
+	--
+	-- -- Mapeamentos para selecionar buffer
 	for i = 1, #buffers do
 		if i <= 9 then     -- Apenas teclas 1-9
 			vim.api.nvim_buf_set_keymap(buf, 'n', tostring(i),
@@ -623,31 +622,34 @@ function M.show_buffers_in_float()
 		end
 	end
 
-	-- Mapeamento para selecionar com Enter
+	-- -- Mapeamento para selecionar com Enter
 	vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>',
 		':lua require("pick-buffer")._select_current_buffer()<CR>',
 		{ noremap = true, silent = true })
 
 
 	local query = {}
+	local is_input_mode = false
+	local selected_index = 1  -- Índice do item selecionado
+
 
 
 	local function update_display()
-		-- ✅ Torna o buffer modificável temporariamente
 		vim.api.nvim_buf_set_option(buf, 'modifiable', true)
 
 		-- Atualiza título
-		local title_text = " > " .. table.concat(query) .. " "
+		local title_text = "> " .. table.concat(query) .. " "
 		vim.api.nvim_win_set_config(win, {
-			title = { { title_text, "FloatTitle" } }
+			title = { { title_text, "FloatTitle" } },
+			footer = { { " Buffers " } }
 		})
 
-		-- Filtra buffers em tempo real!
+		-- Filtra buffers
 		if #query > 0 then
 			local search_term = table.concat(query):lower()
 			filtered_buffers = {}
 			for _, buf in ipairs(buffers) do
-				if buf.name:lower():find(search_term, 1, true) or 
+				if buf.name:lower():find(search_term, 1, true) or
 					buf.path:lower():find(search_term, 1, true) then
 					table.insert(filtered_buffers, buf)
 				end
@@ -656,99 +658,117 @@ function M.show_buffers_in_float()
 			filtered_buffers = buffers
 		end
 
-		-- Atualiza conteúdo
+		selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
+
+		-- Atualiza conteúdo COM SELEÇÃO VISUAL
 		local lines = {}
-		for _, buf in ipairs(filtered_buffers) do
+		for i, buf in ipairs(filtered_buffers) do
 			local status = buf.is_open and "·" or "_"
+			local selector = (i == selected_index) and "  " or "  "
 			local short_path = vim.fn.fnamemodify(buf.path, ":~:")
 			local filename = vim.fn.fnamemodify(buf.path, ":t")
 			local path_without_filename = short_path:sub(1, #short_path - #filename)
 
-			local line = string.format("  %s%d: %s%s", status, buf.number, path_without_filename, filename)
+			local line = string.format("%s%s%d: %s%s", selector, status, buf.number, path_without_filename, filename)
 			table.insert(lines, line)
 		end
 
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-
-		-- ✅ Volta para não modificável após a atualização
 		vim.api.nvim_buf_set_option(buf, 'modifiable', false)
 
+		-- Move o cursor para o item selecionado
+		vim.api.nvim_win_set_cursor(win, {selected_index, 0})
 		vim.cmd("redraw")
 	end
 
 	update_display()
 
-	-- while true do
-	-- 	local ok, char = pcall(vim.fn.getcharstr)
-	-- 	if not ok then break end
-	--
-	-- 	local is_backspace = char == '\8' or char == '\127' or char == '<80>kb' or char:find('kb$')
-	--
-	-- 	if char == '\27' then -- Escape
-	-- 		break
-	-- 	elseif char == '\13' then -- Enter
-	-- 		local final_query = table.concat(query)
-	-- 		vim.schedule(function()
-	-- 			vim.notify("Busca final: " .. final_query, vim.log.levels.INFO)
-	--
-	-- 			-- Seleciona o primeiro buffer filtrado
-	-- 			if #filtered_buffers > 0 then
-	-- 				M._select_buffer(filtered_buffers[1].number)
-	-- 			end
-	-- 		end)
-	-- 		break
-	-- 	elseif is_backspace then -- Backspace
-	-- 		if #query > 0 then 
-	-- 			table.remove(query) 
-	-- 			update_display()  -- ✅ Atualiza a lista também!
-	-- 		end
-	-- 	elseif char:match('^[%g%s]$') then -- Caracteres normais
-	-- 		table.insert(query, char)
-	-- 		update_display()  -- ✅ Atualiza a lista também!
-	-- 	end
-	-- end
-
+	-- LOOP PRINCIPAL COM NAVEGAÇÃO CTRL+TECLAS
 	while true do
-		local ok, char = pcall(vim.fn.getcharstr)
+		local ok, key = pcall(vim.fn.getchar)
 		if not ok then break end
 
-		local is_backspace = char == '\8' or char == '\127' or char == '<80>kb' or char:find('kb$')
+		-- DETECÇÃO ESPECÍFICA PARA <80>kb
+		-- O backspace está vindo como um código especial, não como string
+		local is_backspace = false
+		local char_str = ""
 
-		if char == '\27' then -- Escape
-			vim.schedule(function()
-				vim.notify("Busca cancelada", vim.log.levels.WARN)
-			end)
-			break
-		elseif char == '\13' then -- Enter
-			local final_query = table.concat(query)
+		-- Verifica se é o código especial do backspace (<80>kb)
+		if type(key) == "number" then
+			-- Para códigos numéricos, convertemos para string para verificar
+			char_str = vim.fn.nr2char(key)
 
-			-- ✅ NOTIFICAÇÃO VISÍVEL
-			vim.schedule(function()
-				vim.notify("Busca: '" .. final_query .. "'", vim.log.levels.INFO)
-			end)
+			-- Backspace tradicional (ASCII 8 ou 127)
+			if key == 8 or key == 127 then
+				is_backspace = true
+			end
+		else
+			-- Para strings, verificamos diretamente
+			char_str = key
+		end
 
-			-- ✅ Delay para ver a notificação antes de fechar
-			vim.defer_fn(function()
-				if #filtered_buffers > 0 then
-					M._select_buffer(filtered_buffers[1].number)
-				end
-			end, 10) -- 10ms de delay
+		-- Verifica se é o backspace especial <80>kb
+		if char_str:find("kb") or char_str:find("<80>") then
+			is_backspace = true
+		end
 
-			break
-		elseif is_backspace then -- Backspace
-			if #query > 0 then 
-				table.remove(query) 
+		-- ⭐ NAVEGAÇÃO
+		if key == 10 or char_str == 'J' then -- Ctrl+j ou 'J'
+			selected_index = math.min(#filtered_buffers, selected_index + 1)
+			update_display()
+		elseif key == 11 or char_str == 'K' then -- Ctrl+k ou 'K'
+			selected_index = math.max(1, selected_index - 1)
+			update_display()
+
+		-- ⭐ TECLAS NUMÉRICAS
+		elseif tonumber(char_str) then
+			local num = tonumber(char_str)
+			if num <= #filtered_buffers then
+				selected_index = num
 				update_display()
 			end
-		elseif char:match('^[%g%s]$') then -- Caracteres normais
-			table.insert(query, char)
+
+		-- AÇÕES
+		elseif key == 27 or char_str == '\27' then -- Escape
+			break
+		elseif key == 13 or char_str == '\13' then -- Enter
+			vim.schedule(function()
+				if #filtered_buffers > 0 then
+					M._select_buffer(filtered_buffers[selected_index].number)
+				end
+			end)
+			break
+
+		-- elseif char_str == 'q' then -- Quit
+		-- 	break
+
+		-- BACKSPACE - CORREÇÃO PARA <80>kb
+		elseif is_backspace then
+			if #query > 0 then
+				table.remove(query)
+				selected_index = 1
+				update_display()
+			end
+
+		-- INPUT NORMAL
+		elseif char_str:match('%S') and #char_str == 1 then
+			table.insert(query, char_str)
+			selected_index = 1
 			update_display()
+
 		end
 	end
+
+	vim.api.nvim_win_close(win, true)
+
 
 	-- Salvar referência da janela flutuante para fechar depois
 	M._float_win = win
 end
+
+
+
+
 
 
 
@@ -762,6 +782,7 @@ function M._select_buffer(buffer_number)
 	end
 	M.buffer_command(tostring(buffer_number))
 end
+
 
 -- Função para selecionar buffer da linha atual
 -- function M._select_current_buffer()
