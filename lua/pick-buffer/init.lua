@@ -309,7 +309,7 @@ local function move_buffer_forward()
 	end
 
 	cache_data[current_path][current_index], cache_data[current_path][current_index + 1] =
-			cache_data[current_path][current_index + 1], cache_data[current_path][current_index]
+	cache_data[current_path][current_index + 1], cache_data[current_path][current_index]
 
 	save_cache(cache_data)
 	vim.notify(string.format("Buffer movido para a posição %d", current_index + 1), vim.log.levels.INFO)
@@ -340,7 +340,7 @@ local function move_buffer_backward()
 	end
 
 	cache_data[current_path][current_index], cache_data[current_path][current_index - 1] =
-			cache_data[current_path][current_index - 1], cache_data[current_path][current_index]
+	cache_data[current_path][current_index - 1], cache_data[current_path][current_index]
 
 	save_cache(cache_data)
 	vim.notify(string.format("Buffer movido para a posição %d", current_index - 1), vim.log.levels.INFO)
@@ -369,149 +369,67 @@ end
 
 
 
+function M.test_title_input()
+	local query = {}
 
+	local buf = vim.api.nvim_create_buf(false, true)
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = 'editor',
+		width = 60,
+		height = 10,
+		row = 5,
+		col = 10,
+		style = 'minimal',
+		border = 'single',
+		title = { { "> ", "FloatTitle" } },
+		title_pos = "left",
+	})
 
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+		"Digite no título acima ↑",
+		"",
+		"Backspace: apagar",
+		"Enter: confirmar", 
+		"ESC: sair"
+	})
 
+	local function update_title()
+		local title_text = "> " .. table.concat(query)
+		vim.api.nvim_win_set_config(win, {
+			title = { { title_text, "FloatTitle" } }
+		})
+		vim.cmd("redraw")
+	end
 
+	update_title()
 
--- function M.show_buffers_in_float()
---     local buffers = get_buffers_with_numbers()
---     
---     -- Primeiro, criar uma janela de input para o filtro
---     vim.ui.input({
---         prompt = "Filtrar buffers: ",
---         default = "",
---         completion = "file",
---     }, function(input)
---         if input == nil then return end  -- Usuário pressionou ESC
---         
---         -- Filtrar buffers baseado no input
---         local filtered_buffers = {}
---         if input == "" then
---             filtered_buffers = buffers
---         else
---             for _, buf in ipairs(buffers) do
---                 if buf.name:lower():find(input:lower(), 1, true) or 
---                    buf.path:lower():find(input:lower(), 1, true) then
---                     table.insert(filtered_buffers, buf)
---                 end
---             end
---         end
---         
---         -- Agora mostrar a janela flutuante com os buffers filtrados
---         M._show_filtered_buffers(filtered_buffers, input)
---     end)
--- end
---
--- function M._show_filtered_buffers(buffers, filter_text)
---     -- Conteúdo da janela flutuante
---     local lines = {}
---     for _, buf in ipairs(buffers) do
---         local status = buf.is_open and "·" or "_"
---         local short_path = vim.fn.fnamemodify(buf.path, ":~:")
---         local filename = vim.fn.fnamemodify(buf.path, ":t")
---         local path_without_filename = short_path:sub(1, #short_path - #filename)
---
---         local line = string.format("  %s%d: %s%s", status, buf.number, path_without_filename, filename)
---         table.insert(lines, line)
---     end
---
---     -- Calcular largura dinâmica
---     local max_line_length = 0
---     for _, line in ipairs(lines) do
---         if #line > max_line_length then
---             max_line_length = #line
---         end
---     end
---
---     -- Configurações da janela flutuante
---     local width = math.min(max_line_length + 2, 80)
---     local height = #lines
---     local row = vim.o.lines - height - 1
---     local col = 0
---
---     -- Criar buffer flutuante
---     local buf = vim.api.nvim_create_buf(false, true)
---     local win = vim.api.nvim_open_win(buf, true, {
---         relative = 'editor',
---         width = width,
---         height = height,
---         row = row,
---         col = col,
---         style = 'minimal',
---         border = {
---             { "╭", "FloatBorder" },
---             { "─", "FloatBorder" },
---             { "╮", "FloatBorder" },
---             { "│", "FloatBorder" },
---             { "╯", "FloatBorder" },
---             { "─", "FloatBorder" },
---             { "╰", "FloatBorder" },
---             { "│", "FloatBorder" },
---         },
---         -- Título com o texto do filtro
---         title = {
---             { " Filter: " .. (filter_text or ""), "FloatTitle" }
---         },
---         title_pos = "left",
---         footer = {
---             { " Use 1-9, Enter, q/ESC ", "FloatFooter" }
---         },
---         footer_pos = "left",
---     })
---
---     -- Configurar o buffer
---     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
---     vim.api.nvim_buf_set_option(buf, 'modifiable', false)
---     vim.api.nvim_buf_set_option(buf, 'filetype', 'bufferlist')
---
---     -- Configurações de highlight
---     vim.cmd([[
---         highlight FloatCursorLine guibg=#16181c
---         highlight FloatBorder guifg=#504945
---         highlight FloatTitle guifg=#a89984 guibg=none
---         highlight FloatFooter guifg=#a89984 guibg=none
---     ]])
---
---     vim.api.nvim_win_set_option(win, 'cursorline', true)
---     vim.api.nvim_win_set_option(win, 'cursorlineopt', 'both')
---     vim.api.nvim_win_set_option(win, 'winhighlight', 'CursorLine:FloatCursorLine')
---
---     -- Mapeamentos
---     vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':q<CR>', { noremap = true, silent = true })
---     vim.api.nvim_buf_set_keymap(buf, 'n', '<ESC>', ':q<CR>', { noremap = true, silent = true })
---     
---     -- Mapeamento para reabrir o filtro
---     vim.api.nvim_buf_set_keymap(buf, 'n', '<C-f>', 
---         ':lua require("pick-buffer")._reopen_filter()<CR>',
---         { noremap = true, silent = true })
---
---     -- Mapeamentos para selecionar buffer
---     for i, buf_item in ipairs(buffers) do
---         if buf_item.number <= 9 then
---             vim.api.nvim_buf_set_keymap(buf, 'n', tostring(buf_item.number), 
---                 ':lua require("pick-buffer")._select_buffer(' .. buf_item.number .. ')<CR>', 
---                 { noremap = true, silent = true })
---         end
---     end
---
---     vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', 
---         ':lua require("pick-buffer")._select_current_buffer()<CR>',
---         { noremap = true, silent = true })
---
---     -- Salvar referências
---     M._float_win = win
---     M._float_buf = buf
---     M._current_filter = filter_text
--- end
---
--- -- Função para reabrir o filtro
--- function M._reopen_filter()
---     if M._float_win and vim.api.nvim_win_is_valid(M._float_win) then
---         vim.api.nvim_win_close(M._float_win, true)
---     end
---     M.show_buffers_in_float()
--- end
+	while true do
+		local ok, char = pcall(vim.fn.getcharstr)
+		if not ok then break end
+
+		-- Verifica se é Backspace (todas as representações possíveis)
+		local is_backspace = char == '\8' or char == '\127' or char == '<80>kb' or char:find('kb$')
+
+		if char == '\27' then -- Escape
+			break
+		elseif char == '\13' then -- Enter
+			vim.notify("Confirmado: " .. table.concat(query), vim.log.levels.INFO)
+			break
+		elseif is_backspace then -- Backspace
+			if #query > 0 then 
+				table.remove(query) 
+				update_title()
+			end
+		elseif char:match('^[%g%s]$') then -- Caracteres normais
+			table.insert(query, char)
+			update_title()
+		end
+	end
+
+	vim.api.nvim_win_close(win, true)
+	vim.api.nvim_buf_delete(buf, {force = true})
+end
+
 
 
 
@@ -627,6 +545,11 @@ function M.show_buffers_in_float()
 	local row = vim.o.lines - height - 1              -- Canto inferior
 	local col = 0                                     -- Canto esquerdo (colado na borda)
 
+
+
+
+
+
 	-- Criar buffer flutuante
 	local buf = vim.api.nvim_create_buf(false, true)
 	local win = vim.api.nvim_open_win(buf, true, {
@@ -651,16 +574,18 @@ function M.show_buffers_in_float()
 		},
 		-- Título na parte inferior direita
 		title = {
-			{ " Buffers ", "FloatTitle" }
+			{ " > ", "FloatTitle" }
 		},
 		title_pos = "left",     -- Título à direita
-		-- footer = {
-		-- 	{ " ...  ", "FloatFooter" }
-		-- 	-- { " Use 1-9, Enter, q/ESC ", "FloatFooter" }
-		-- },
+		footer = {
+			{ " Buffers ", "FloatFooter" }
+			-- { " Use 1-9, Enter, q/ESC ", "FloatFooter" }
+		},
 		-- footer_pos = "left",     -- Footer à esquerda
 		-- })
 	})
+
+
 
 	-- Configurar o buffer
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -702,6 +627,124 @@ function M.show_buffers_in_float()
 	vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>',
 		':lua require("pick-buffer")._select_current_buffer()<CR>',
 		{ noremap = true, silent = true })
+
+
+	local query = {}
+
+
+	local function update_display()
+		-- ✅ Torna o buffer modificável temporariamente
+		vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+
+		-- Atualiza título
+		local title_text = " > " .. table.concat(query) .. " "
+		vim.api.nvim_win_set_config(win, {
+			title = { { title_text, "FloatTitle" } }
+		})
+
+		-- Filtra buffers em tempo real!
+		if #query > 0 then
+			local search_term = table.concat(query):lower()
+			filtered_buffers = {}
+			for _, buf in ipairs(buffers) do
+				if buf.name:lower():find(search_term, 1, true) or 
+					buf.path:lower():find(search_term, 1, true) then
+					table.insert(filtered_buffers, buf)
+				end
+			end
+		else
+			filtered_buffers = buffers
+		end
+
+		-- Atualiza conteúdo
+		local lines = {}
+		for _, buf in ipairs(filtered_buffers) do
+			local status = buf.is_open and "·" or "_"
+			local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+			local filename = vim.fn.fnamemodify(buf.path, ":t")
+			local path_without_filename = short_path:sub(1, #short_path - #filename)
+
+			local line = string.format("  %s%d: %s%s", status, buf.number, path_without_filename, filename)
+			table.insert(lines, line)
+		end
+
+		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+		-- ✅ Volta para não modificável após a atualização
+		vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+
+		vim.cmd("redraw")
+	end
+
+	update_display()
+
+	-- while true do
+	-- 	local ok, char = pcall(vim.fn.getcharstr)
+	-- 	if not ok then break end
+	--
+	-- 	local is_backspace = char == '\8' or char == '\127' or char == '<80>kb' or char:find('kb$')
+	--
+	-- 	if char == '\27' then -- Escape
+	-- 		break
+	-- 	elseif char == '\13' then -- Enter
+	-- 		local final_query = table.concat(query)
+	-- 		vim.schedule(function()
+	-- 			vim.notify("Busca final: " .. final_query, vim.log.levels.INFO)
+	--
+	-- 			-- Seleciona o primeiro buffer filtrado
+	-- 			if #filtered_buffers > 0 then
+	-- 				M._select_buffer(filtered_buffers[1].number)
+	-- 			end
+	-- 		end)
+	-- 		break
+	-- 	elseif is_backspace then -- Backspace
+	-- 		if #query > 0 then 
+	-- 			table.remove(query) 
+	-- 			update_display()  -- ✅ Atualiza a lista também!
+	-- 		end
+	-- 	elseif char:match('^[%g%s]$') then -- Caracteres normais
+	-- 		table.insert(query, char)
+	-- 		update_display()  -- ✅ Atualiza a lista também!
+	-- 	end
+	-- end
+
+	while true do
+		local ok, char = pcall(vim.fn.getcharstr)
+		if not ok then break end
+
+		local is_backspace = char == '\8' or char == '\127' or char == '<80>kb' or char:find('kb$')
+
+		if char == '\27' then -- Escape
+			vim.schedule(function()
+				vim.notify("Busca cancelada", vim.log.levels.WARN)
+			end)
+			break
+		elseif char == '\13' then -- Enter
+			local final_query = table.concat(query)
+
+			-- ✅ NOTIFICAÇÃO VISÍVEL
+			vim.schedule(function()
+				vim.notify("Busca: '" .. final_query .. "'", vim.log.levels.INFO)
+			end)
+
+			-- ✅ Delay para ver a notificação antes de fechar
+			vim.defer_fn(function()
+				if #filtered_buffers > 0 then
+					M._select_buffer(filtered_buffers[1].number)
+				end
+			end, 10) -- 10ms de delay
+
+			break
+		elseif is_backspace then -- Backspace
+			if #query > 0 then 
+				table.remove(query) 
+				update_display()
+			end
+		elseif char:match('^[%g%s]$') then -- Caracteres normais
+			table.insert(query, char)
+			update_display()
+		end
+	end
 
 	-- Salvar referência da janela flutuante para fechar depois
 	M._float_win = win
@@ -752,16 +795,16 @@ function M.list_buffers()
 			return string.format("[%d] %s   %s", item.number, item.name, item.path)
 		end,
 	}, function(choice)
-		if choice then
-			local existing_buf = find_buffer_by_path(choice.path)
-			if existing_buf then
-				vim.cmd("buffer " .. existing_buf)
-			else
-				vim.cmd("silent! badd " .. choice.path)
-				vim.cmd("buffer " .. vim.fn.bufnr(choice.path))
+			if choice then
+				local existing_buf = find_buffer_by_path(choice.path)
+				if existing_buf then
+					vim.cmd("buffer " .. existing_buf)
+				else
+					vim.cmd("silent! badd " .. choice.path)
+					vim.cmd("buffer " .. vim.fn.bufnr(choice.path))
+				end
 			end
-		end
-	end)
+		end)
 end
 
 function M.close_current_buffer()
