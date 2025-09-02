@@ -629,8 +629,8 @@ function M.show_buffers_in_float()
 
 				highlight PromptSymbol guifg=#B9B8B4
 				highlight FloatBorder  guifg=#B9B8B4
-				highlight FloatTitle   guifg=#B9B8B4 guibg=black" guibg=#504945
-				highlight FloatFooter  guifg=#B9B8B4 guibg=none " guibg=#3c3836
+				highlight FloatTitle   guifg=#B9B8B4 guibg=black " guibg=#504945
+				highlight FloatFooter  guifg=#B9B8B4 guibg=#181715 " guibg=none " guibg=#3c3836
 				highlight InputText    guifg=#A9B7C6 gui=bold
 				]])
 
