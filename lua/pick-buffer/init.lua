@@ -561,6 +561,8 @@ function M.show_buffers_in_float()
 
 
 
+	local query = {}
+	local selected_index = 1  -- Índice do item selecionado
 
 
 
@@ -574,19 +576,25 @@ function M.show_buffers_in_float()
 		col = col,
 		style = 'minimal',
 		border = {
-			{ "╭", "FloatBorder" },
+			{ "┌", "FloatBorder" },
 			{ "─", "FloatBorder" },
-			{ "╮", "FloatBorder" },
+			{ "┐", "FloatBorder" },
 			{ "│", "FloatBorder" },
-			{ "╯", "FloatBorder" },
+			{ "┘", "FloatBorder" },
 			{ "─", "FloatBorder" },
-			{ "╰", "FloatBorder" },
+			{ "└", "FloatBorder" },
 			{ "│", "FloatBorder" },
 		},
-		-- Título na parte inferior direita
+		-- -- Título na parte inferior direita
+		-- title = {
+		-- 	{ " > ", "FloatTitle" }
+		-- },
+-- Título com cor diferente para o ">" e para o input
 		title = {
-			{ " > ", "FloatTitle" }
+			{ "> ", "PromptSymbol" },      -- Símbolo ">" com cor diferente
+			{ table.concat(query), "InputText" }  -- Texto do input com outra cor
 		},
+
 		title_pos = "left",     -- Título à direita
 		footer = {
 			{ " Buffers ", "FloatFooter" }
@@ -603,7 +611,7 @@ function M.show_buffers_in_float()
 	-- CONFIGURAÇÕES DE HIGHLIGHT PARA A JANELA FLUTUANTE
 	-- Definir highlight personalizado para CursorLine
 	vim.cmd([[
-				highlight FloatCursorLine guibg=#16181c
+				highlight FloatCursorLine guibg=#262524
 				]])
 
 	-- Aplicar o highlight da linha do cursor
@@ -613,9 +621,17 @@ function M.show_buffers_in_float()
 
 	-- Adicionar highlights personalizados (opcional)
 	vim.cmd([[
-				highlight FloatBorder guifg=#A66B42
-				highlight FloatTitle guifg=#A66B42 guibg=black" guibg=#504945
-				highlight FloatFooter guifg=#A66B42 guibg=none " guibg=#3c3836
+				" highlight NormalNC guibg=none
+				highlight NormalFloat  guibg=#181715
+				highlight FloatBorder  guibg=#181715
+				highlight PromptSymbol guibg=#181715
+				highlight InputText    guibg=black
+
+				highlight PromptSymbol guifg=#B9B8B4
+				highlight FloatBorder  guifg=#B9B8B4
+				highlight FloatTitle   guifg=#B9B8B4 guibg=black" guibg=#504945
+				highlight FloatFooter  guifg=#B9B8B4 guibg=none " guibg=#3c3836
+				highlight InputText    guifg=#A9B7C6 gui=bold
 				]])
 
 	-- -- Mapeamentos para fechar a janela
@@ -637,9 +653,6 @@ function M.show_buffers_in_float()
 		{ noremap = true, silent = true })
 
 
-	local query = {}
-	local is_input_mode = false
-	local selected_index = 1  -- Índice do item selecionado
 
 
 
@@ -648,9 +661,16 @@ function M.show_buffers_in_float()
 
 		-- Atualiza título
 		local title_text = "> " .. table.concat(query) .. " "
+		-- vim.api.nvim_win_set_config(win, {
+		-- 	title = { { title_text, "FloatTitle" } },
+		-- 	footer = { { " BUFFERS " } }
+		-- })
 		vim.api.nvim_win_set_config(win, {
-			title = { { title_text, "FloatTitle" } },
-			footer = { { " Buffers " } }
+			title = {
+				{ "❭", "PromptSymbol" },
+				{ " " .. table.concat(query) .. "│ ", "InputText" }
+			},
+			footer = { { " BUFFERS " } }
 		})
 
 		-- Filtra buffers
