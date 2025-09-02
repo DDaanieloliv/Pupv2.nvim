@@ -692,7 +692,8 @@ function M.show_buffers_in_float()
 		-- Atualiza conteúdo COM SELEÇÃO VISUAL
 		local lines = {}
 		for i, buf in ipairs(filtered_buffers) do
-			local status = buf.is_open and "·" or "_"
+			-- local status = buf.is_open and "·" or "_"
+			local status = buf.is_open and " " or "_"
 			local selector = (i == selected_index) and "  " or "  "
 			local short_path = vim.fn.fnamemodify(buf.path, ":~:")
 			local filename = vim.fn.fnamemodify(buf.path, ":t")
