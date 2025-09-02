@@ -614,7 +614,7 @@ function M.show_buffers_in_float()
 	-- Adicionar highlights personalizados (opcional)
 	vim.cmd([[
 				highlight FloatBorder guifg=#A66B42
-				highlight FloatTitle guifg=#a89984 guibg=black" guibg=#504945
+				highlight FloatTitle guifg=#A66B42 guibg=black" guibg=#504945
 				highlight FloatFooter guifg=#A66B42 guibg=none " guibg=#3c3836
 				]])
 
