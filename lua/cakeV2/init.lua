@@ -761,12 +761,12 @@ function M.show_buffers_in_float()
 		-- Atualiza conteúdo
 		local lines = {}
 		for i, buf_item in ipairs(filtered_buffers) do
-			local status = buf_item.is_open and " " or " _"
+			local status = buf_item.is_open and " " or "🖹"
 			local short_path = vim.fn.fnamemodify(buf_item.path, ":~:")
 			local filename = vim.fn.fnamemodify(buf_item.path, ":t")
 			local path_without_filename = short_path:sub(1, #short_path - #filename)
 
-			local line = string.format("%s%d: %s%s", status, buf_item.number, path_without_filename, filename)
+			local line = string.format("%s%d %s%s", status, buf_item.number, path_without_filename, filename)
 			table.insert(lines, line)
 		end
 
