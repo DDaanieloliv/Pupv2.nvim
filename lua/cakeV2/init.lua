@@ -557,8 +557,9 @@ function M.show_buffers_in_float()
 	end
 
 	-- Configurações da janela flutuante - CANTO INFERIOR ESQUERDO
-	local width = math.min(max_line_length + 2, 80)   -- Largura dinâmica com limite máximo
+	-- local width = math.min(max_line_length + 2, 80)   -- Largura dinâmica com limite máximo
 	-- local height = #lines
+	local width = 69   -- Largura dinâmica com limite máximo
 	local height = 25
 	local row = vim.o.lines - height - 1              -- Canto inferior
 	local col = 0                                     -- Canto esquerdo (colado na borda)
@@ -580,13 +581,13 @@ function M.show_buffers_in_float()
 		col = col,
 		style = 'minimal',
 		border = {
-			{ "┌", "FloatBorder" },
+			{ "╭", "FloatBorder" },
 			{ "─", "FloatBorder" },
-			{ "┐", "FloatBorder" },
+			{ "╮", "FloatBorder" },
 			{ "│", "FloatBorder" },
-			{ "┘", "FloatBorder" },
+			{ "╯", "FloatBorder" },
 			{ "─", "FloatBorder" },
-			{ "└", "FloatBorder" },
+			{ "╰", "FloatBorder" },
 			{ "│", "FloatBorder" },
 		},
 		-- -- Título na parte inferior direita
@@ -727,7 +728,7 @@ function M.show_buffers_in_float()
 		-- Atualiza título
 		vim.api.nvim_win_set_config(win, {
 			title = {
-				{ "❭", "PromptSymbol" },
+				{ "", "PromptSymbol" },
 				{ " " .. table.concat(query) .. "│ ", "InputText" }
 			},
 			footer = { { " BUFFERS " } }
