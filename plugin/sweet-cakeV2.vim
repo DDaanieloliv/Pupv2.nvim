@@ -12,10 +12,10 @@ let g:loaded_pick_buffer = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-lua require('pick-buffer').setup()
+lua require('sweet-cakeV2').setup()
 
 " Comando principal
-command! -nargs=? -complete=customlist,v:lua.require'pick-buffer'.buffer_completion B lua require('pick-buffer').buffer_command(<q-args>)
+command! -nargs=? -complete=customlist,v:lua.require'sweet-cakeV2'.buffer_completion B lua require('sweet-cakeV2').buffer_command(<q-args>)
 
 " Restaura cpo
 let &cpo = s:save_cpo
