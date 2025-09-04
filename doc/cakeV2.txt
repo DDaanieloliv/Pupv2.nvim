@@ -1,12 +1,12 @@
 ---
 
-*sweet-cakeV2.txt*	Smart buffer manager for Neovim
+*sweetCakeV2.txt*	Smart buffer manager for Neovim
 
-Sweet-cakeV2.nvim					*sweet-cakeV2*
+sweetCakeV2.nvim					*cakeV2*
 
 A smart buffer manager that maintains persistent cache per working directory.
 
-INTRODUCTION					*sweet-cakeV2-intro*
+INTRODUCTION					*cakeV2-intro*
 
 This plugin provides intelligent buffer management with:
 - Persistent cache of buffers per working directory
@@ -14,12 +14,12 @@ This plugin provides intelligent buffer management with:
 - Automatic buffer tracking
 - Telescope integration handling
 
-COMMANDS						*sweet-cakeV2-commands*
+COMMANDS						*cakeV2-commands*
 
 :B [number|name]					*:B*
 		List buffers or open specific buffer by number/name
 
-MAPPINGS						*sweet-cakeV2-mappings*
+MAPPINGS						*cakeV2-mappings*
 
 <leader>ls		List buffers with UI selection
 <leader>q		Close current buffer (save and remove from cache)
@@ -30,10 +30,10 @@ MAPPINGS						*sweet-cakeV2-mappings*
 <leader>]		Move current buffer forward in list
 <A-1> to <A-9>		Quick open buffer 1-9 from cache
 
-CUSTOMIZATION					*sweet-cakeV2-customization*
+CUSTOMIZATION					*cakeV2-customization*
 
 To customize keymaps: >
-	lua require('sweet-cakeV2').setup({
+	lua require('cakeV2').setup({
 		keymaps = {
 			list_buffers = "<leader>ls",
 			close_buffer = "<leader>q",
@@ -42,6 +42,6 @@ To customize keymaps: >
 	})
 <
 
-SETTINGS						*sweet-cakeV2-settings*
+SETTINGS						*cakeV2-settings*
 
-g:sweet-cakeV2_config		Configuration table
+g:cakeV2_config		Configuration table

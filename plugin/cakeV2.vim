@@ -1,4 +1,4 @@
-" Pickup-Buffer.nvim - buffer manager using telescope and with persistent cache
+" sweetCakeV2.nvim - buffer manager using telescope and with persistent cache
 " Last Change: 2025
 " Maintainer: Daniel Oliveira daniel0333v@gamil.com
 " License: MIT
@@ -12,10 +12,10 @@ let g:loaded_pick_buffer = 1
 let s:save_cpo = &cpo
 set cpo&vim
 
-lua require('sweet-cakeV2').setup()
+lua require('cakeV2').setup()
 
 " Comando principal
-command! -nargs=? -complete=customlist,v:lua.require'sweet-cakeV2'.buffer_completion B lua require('sweet-cakeV2').buffer_command(<q-args>)
+command! -nargs=? -complete=customlist,v:lua.require'cakeV2'.buffer_completion B lua require('cakeV2').buffer_command(<q-args>)
 
 " Restaura cpo
 let &cpo = s:save_cpo

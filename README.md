@@ -1,2 +1,2 @@
-# Sweet-cakeV2.nvim
+# sweetCakeV2.nvim
 A personal plugin that helps me switch between buffers on NeoVim.
