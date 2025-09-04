@@ -766,7 +766,7 @@ function M.show_buffers_in_float()
 			local filename = vim.fn.fnamemodify(buf_item.path, ":t")
 			local path_without_filename = short_path:sub(1, #short_path - #filename)
 
-			local line = string.format("%s%d %s%s", status, buf_item.number, path_without_filename, filename)
+			local line = string.format("%s%d: %s%s", status, buf_item.number, path_without_filename, filename)
 			table.insert(lines, line)
 		end
 
