@@ -613,28 +613,33 @@ function M.show_buffers_in_float()
 	vim.api.nvim_buf_set_option(buf, 'filetype', 'bufferlist')
 
 	-- CONFIGURAÇÕES DE HIGHLIGHT PARA A JANELA FLUTUANTE
-	-- Definir highlight personalizado para CursorLine
-	vim.cmd([[
-				highlight FloatCursorLine guibg=#262524
-				]])
-
 	-- Aplicar o highlight da linha do cursor
 	vim.api.nvim_win_set_option(win, 'cursorline', true)  -- Ativa cursorline
 	vim.api.nvim_win_set_option(win, 'cursorlineopt', 'both')  -- Destaca linha e número
 	vim.api.nvim_win_set_option(win, 'winhighlight', 'CursorLine:FloatCursorLine')
+
+
+	-- Definir highlight personalizado para CursorLine
+	vim.cmd([[
+				highlight FloatCursorLine guibg=#312f2d
+				]])
+
 
 	-- Adicionar highlights personalizados (opcional)
 	vim.cmd([[
 				" highlight NormalNC guibg=none
 				highlight NormalFloat  guibg=#181715
 				highlight FloatBorder  guibg=#181715
+
 				highlight PromptSymbol guibg=#06070d
 				highlight InputText    guibg=#06070d
+
+				highlight FloatFooter  guibg=#181715
 
 				highlight PromptSymbol guifg=#B9B8B4
 				highlight FloatBorder  guifg=#B9B8B4
 				highlight FloatTitle   guifg=#B9B8B4 guibg=black " guibg=#504945
-				highlight FloatFooter  guifg=#B9B8B4 guibg=#181715 " guibg=none " guibg=#3c3836
+				highlight FloatFooter  guifg=#B9B8B4 " guibg=none " guibg=#3c3836
 				highlight InputText    guifg=#A9B7C6 " gui=bold
 				]])
 
@@ -833,11 +838,17 @@ function M.show_buffers_in_float()
 			is_backspace = true
 		end
 
-		-- ⭐ NAVEGAÇÃO
-		if key == 10 or char_str == 'J' then -- Ctrl+j ou 'J'
+		-- NAVEGAÇÃO
+		-- if key == 10 or char_str == 'J' then -- Ctrl+j ou 'J'
+		-- 	selected_index = math.min(#filtered_buffers, selected_index + 1)
+		-- 	update_display()
+		-- elseif key == 11 or char_str == 'K' then -- Ctrl+k ou 'K'
+		-- 	selected_index = math.max(1, selected_index - 1)
+		-- 	update_display()
+		if key == 10 then -- Ctrl+j
 			selected_index = math.min(#filtered_buffers, selected_index + 1)
 			update_display()
-		elseif key == 11 or char_str == 'K' then -- Ctrl+k ou 'K'
+		elseif key == 11 then -- Ctrl+k
 			selected_index = math.max(1, selected_index - 1)
 			update_display()
 		elseif key == 14 then -- Ctrl+n
