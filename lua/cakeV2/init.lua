@@ -28,6 +28,9 @@ local default_config = {
 	}
 }
 
+-- Adicione com as outras variáveis no topo
+local ns_id = vim.api.nvim_create_namespace('PickBufferMatchHL')
+
 M.config = vim.deepcopy(default_config)
 
 -- Variáveis internas
@@ -527,6 +530,7 @@ end
 
 
 
+
 function M.show_buffers_in_float()
 	local buffers = get_buffers_with_numbers()
 
@@ -589,7 +593,7 @@ function M.show_buffers_in_float()
 		-- title = {
 		-- 	{ " > ", "FloatTitle" }
 		-- },
--- Título com cor diferente para o ">" e para o input
+		-- Título com cor diferente para o ">" e para o input
 		title = {
 			{ "> ", "PromptSymbol" },      -- Símbolo ">" com cor diferente
 			{ table.concat(query), "InputText" }  -- Texto do input com outra cor
@@ -624,14 +628,14 @@ function M.show_buffers_in_float()
 				" highlight NormalNC guibg=none
 				highlight NormalFloat  guibg=#181715
 				highlight FloatBorder  guibg=#181715
-				highlight PromptSymbol guibg=#181715
-				highlight InputText    guibg=black
+				highlight PromptSymbol guibg=#06070d
+				highlight InputText    guibg=#06070d
 
 				highlight PromptSymbol guifg=#B9B8B4
 				highlight FloatBorder  guifg=#B9B8B4
 				highlight FloatTitle   guifg=#B9B8B4 guibg=black " guibg=#504945
 				highlight FloatFooter  guifg=#B9B8B4 guibg=#181715 " guibg=none " guibg=#3c3836
-				highlight InputText    guifg=#A9B7C6 gui=bold
+				highlight InputText    guifg=#A9B7C6 " gui=bold
 				]])
 
 	-- -- Mapeamentos para fechar a janela
@@ -655,16 +659,67 @@ function M.show_buffers_in_float()
 
 
 
+	-- local function update_display()
+	-- 	vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+	--
+	-- 	-- Atualiza título
+	-- 	local title_text = "> " .. table.concat(query) .. " "
+	-- 	-- vim.api.nvim_win_set_config(win, {
+	-- 	-- 	title = { { title_text, "FloatTitle" } },
+	-- 	-- 	footer = { { " BUFFERS " } }
+	-- 	-- })
+	-- 	vim.api.nvim_win_set_config(win, {
+	-- 		title = {
+	-- 			{ "❭", "PromptSymbol" },
+	-- 			{ " " .. table.concat(query) .. "│ ", "InputText" }
+	-- 		},
+	-- 		footer = { { " BUFFERS " } }
+	-- 	})
+	--
+	-- 	-- Filtra buffers
+	-- 	if #query > 0 then
+	-- 		local search_term = table.concat(query):lower()
+	-- 		filtered_buffers = {}
+	-- 		for _, buf in ipairs(buffers) do
+	-- 			if buf.name:lower():find(search_term, 1, true) or
+	-- 				buf.path:lower():find(search_term, 1, true) then
+	-- 				table.insert(filtered_buffers, buf)
+	-- 			end
+	-- 		end
+	-- 	else
+	-- 		filtered_buffers = buffers
+	-- 	end
+	--
+	-- 	selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
+	--
+	-- 	-- Atualiza conteúdo COM SELEÇÃO VISUAL
+	-- 	local lines = {}
+	-- 	for i, buf in ipairs(filtered_buffers) do
+	-- 		-- local status = buf.is_open and "·" or "_"
+	-- 		local status = buf.is_open and " " or " _"
+	-- 		local selector = (i == selected_index) and "" or ""
+	-- 		local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+	-- 		local filename = vim.fn.fnamemodify(buf.path, ":t")
+	-- 		local path_without_filename = short_path:sub(1, #short_path - #filename)
+	--
+	-- 		local line = string.format("%s%s%d: %s%s", selector, status, buf.number, path_without_filename, filename)
+	-- 		table.insert(lines, line)
+	-- 	end
+	--
+	-- 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	-- 	vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+	--
+	-- 	-- Move o cursor para o item selecionado
+	-- 	vim.api.nvim_win_set_cursor(win, {selected_index, 0})
+	-- 	vim.cmd("redraw")
+	-- end
 
+
+	-- Função update_display(), com highlight para matchs.
 	local function update_display()
 		vim.api.nvim_buf_set_option(buf, 'modifiable', true)
 
 		-- Atualiza título
-		local title_text = "> " .. table.concat(query) .. " "
-		-- vim.api.nvim_win_set_config(win, {
-		-- 	title = { { title_text, "FloatTitle" } },
-		-- 	footer = { { " BUFFERS " } }
-		-- })
 		vim.api.nvim_win_set_config(win, {
 			title = {
 				{ "❭", "PromptSymbol" },
@@ -673,14 +728,19 @@ function M.show_buffers_in_float()
 			footer = { { " BUFFERS " } }
 		})
 
+		vim.cmd([[
+		highlight PickBufferMatch guifg=#7A729A gui=bold
+		highlight PickBufferMatchCurrent guifg=#FF6B6B gui=bold
+    ]])
+
 		-- Filtra buffers
 		if #query > 0 then
 			local search_term = table.concat(query):lower()
 			filtered_buffers = {}
-			for _, buf in ipairs(buffers) do
-				if buf.name:lower():find(search_term, 1, true) or
-					buf.path:lower():find(search_term, 1, true) then
-					table.insert(filtered_buffers, buf)
+			for _, buf_item in ipairs(buffers) do
+				if buf_item.name:lower():find(search_term, 1, true) or
+					buf_item.path:lower():find(search_term, 1, true) then
+					table.insert(filtered_buffers, buf_item)
 				end
 			end
 		else
@@ -689,27 +749,58 @@ function M.show_buffers_in_float()
 
 		selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
 
-		-- Atualiza conteúdo COM SELEÇÃO VISUAL
+		-- Limpa highlights anteriores
+		vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+
+		-- Atualiza conteúdo
 		local lines = {}
-		for i, buf in ipairs(filtered_buffers) do
-			-- local status = buf.is_open and "·" or "_"
-			local status = buf.is_open and " " or " _"
-			local selector = (i == selected_index) and "" or ""
-			local short_path = vim.fn.fnamemodify(buf.path, ":~:")
-			local filename = vim.fn.fnamemodify(buf.path, ":t")
+		for i, buf_item in ipairs(filtered_buffers) do
+			local status = buf_item.is_open and " " or " _"
+			local short_path = vim.fn.fnamemodify(buf_item.path, ":~:")
+			local filename = vim.fn.fnamemodify(buf_item.path, ":t")
 			local path_without_filename = short_path:sub(1, #short_path - #filename)
 
-			local line = string.format("%s%s%d: %s%s", selector, status, buf.number, path_without_filename, filename)
+			local line = string.format("%s%d: %s%s", status, buf_item.number, path_without_filename, filename)
 			table.insert(lines, line)
 		end
 
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 		vim.api.nvim_buf_set_option(buf, 'modifiable', false)
 
+		-- ADICIONE ESTA PARTE PARA HIGHLIGHT DOS MATCHES
+		if #query > 0 then
+			local search_lower = table.concat(query):lower()
+
+			for i, buf_item in ipairs(filtered_buffers) do
+				local line_text = lines[i]
+				local line_lower = line_text:lower()
+
+				-- Encontra todas as posições onde a query aparece
+				local start_pos = 1
+				while true do
+					local match_start, match_end = line_lower:find(search_lower, start_pos, true)
+					if not match_start then break end
+
+					vim.api.nvim_buf_add_highlight(
+						buf,
+						ns_id,
+						'PickBufferMatch',  -- Seu highlight personalizado
+						i - 1,
+						match_start - 1,
+						match_end
+					)
+					start_pos = match_end + 1
+				end
+			end
+		end
+
 		-- Move o cursor para o item selecionado
 		vim.api.nvim_win_set_cursor(win, {selected_index, 0})
 		vim.cmd("redraw")
 	end
+
+
+
 
 	update_display()
 
@@ -749,8 +840,14 @@ function M.show_buffers_in_float()
 		elseif key == 11 or char_str == 'K' then -- Ctrl+k ou 'K'
 			selected_index = math.max(1, selected_index - 1)
 			update_display()
+		elseif key == 14 then -- Ctrl+n
+			selected_index = math.min(#filtered_buffers, selected_index + 1)
+			update_display()
+		elseif key == 16 then -- Ctrl+p
+			selected_index = math.max(1, selected_index - 1)
+			update_display()
 
-		-- ⭐ TECLAS NUMÉRICAS
+			-- ⭐ TECLAS NUMÉRICAS
 		elseif tonumber(char_str) then
 			local num = tonumber(char_str)
 			if num <= #filtered_buffers then
@@ -758,7 +855,7 @@ function M.show_buffers_in_float()
 				update_display()
 			end
 
-		-- AÇÕES
+			-- AÇÕES
 		elseif key == 27 or char_str == '\27' then -- Escape
 			break
 		elseif key == 13 or char_str == '\13' then -- Enter
@@ -769,10 +866,10 @@ function M.show_buffers_in_float()
 			end)
 			break
 
-		-- elseif char_str == 'q' then -- Quit
-		-- 	break
+			-- elseif char_str == 'q' then -- Quit
+			-- 	break
 
-		-- BACKSPACE - CORREÇÃO PARA <80>kb
+			-- BACKSPACE - CORREÇÃO PARA <80>kb
 		elseif is_backspace then
 			if #query > 0 then
 				table.remove(query)
@@ -780,7 +877,7 @@ function M.show_buffers_in_float()
 				update_display()
 			end
 
-		-- INPUT NORMAL
+			-- INPUT NORMAL
 		elseif char_str:match('%S') and #char_str == 1 then
 			table.insert(query, char_str)
 			selected_index = 1
@@ -788,6 +885,7 @@ function M.show_buffers_in_float()
 
 		end
 	end
+
 
 	vim.api.nvim_win_close(win, true)
 
@@ -814,16 +912,6 @@ function M._select_buffer(buffer_number)
 end
 
 
--- Função para selecionar buffer da linha atual
--- function M._select_current_buffer()
--- 	local line = vim.api.nvim_get_current_line()
--- 	-- Extrai o número do buffer da linha (ex: "* [1] path")
--- 	local buffer_number = line:match('%[(%d+)%]')
---
--- 	if buffer_number then
--- 		M._select_buffer(tonumber(buffer_number))
--- 	end
--- end
 
 -- Função para selecionar buffer da linha atual
 function M._select_current_buffer()
@@ -902,6 +990,9 @@ function M.setup_keymaps()
 	vim.keymap.set("n", keymaps.remove_last, remove_last_buffer_from_cache, { desc = "Remover último buffer do cache" })
 	vim.keymap.set("n", keymaps.clear_cache, clear_cache, { desc = "Limpar todo o cache de buffers" })
 
+
+
+
 	-- for i = 1, 9 do
 	-- 	vim.keymap.set("n", "<A-" .. i .. ">", function()
 	-- 		local buffers = get_buffers_with_numbers()
@@ -913,6 +1004,8 @@ function M.setup_keymaps()
 	-- 	end, { desc = "Abrir buffer " .. i .. " do cache" })
 	-- end
 
+
+	-- Versão que permite fechar tab informativa quando existente.
 	for i = 1, 9 do
 		vim.keymap.set("n", "<A-" .. i .. ">", function()
 			-- Verifica se o buffer atual é "[Rascunho]" e fecha a tab
