@@ -2,7 +2,7 @@
 
 *sweet-cakeV2.txt*	Smart buffer manager for Neovim
 
-sweet-cakeV2.nvim					*sweet-cakeV2*
+Sweet-cakeV2.nvim					*sweet-cakeV2*
 
 A smart buffer manager that maintains persistent cache per working directory.
 
