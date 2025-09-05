@@ -1,12 +1,12 @@
 ---
 
-*sweetCakeV2.txt*	Smart buffer manager for Neovim
+*pupV2.txt*	Smart buffer manager for Neovim
 
-sweetCakeV2.nvim					*cakeV2*
+PupV2.nvim					*pupV2*
 
 A smart buffer manager that maintains persistent cache per working directory.
 
-INTRODUCTION					*cakeV2-intro*
+INTRODUCTION					*pupV2-intro*
 
 This plugin provides buffer management with:
 - Persistent cache of buffers per working directory
@@ -14,13 +14,13 @@ This plugin provides buffer management with:
 - Automatic buffer tracking
 - Telescope integration handling other wise providing a mini.pick's like UI
 
-COMMANDS						*cakeV2-commands*
+COMMANDS						*pupV2-commands*
 
 :B [number|name]					*:B*
 		List buffers or open specific buffer by number/name
     Show up a mini.pick's like UI with buffers's current working directory
 
-MAPPINGS						*cakeV2-mappings*
+MAPPINGS						*pupV2-mappings*
 
 <leader>ls		List buffers with UI selection, since you had Telescope setup
 <leader>q		Close current buffer (save and remove from cache)
@@ -31,11 +31,11 @@ MAPPINGS						*cakeV2-mappings*
 <leader>]		Move current buffer forward in list
 <A-1> to <A-9>		Quick open buffer 1-9 from cache
 
-CUSTOMIZATION					*cakeV2-customization*
+CUSTOMIZATION					*pupV2-customization*
 
 To customize keymaps: >
 		config = function()
-			require("cakeV2").setup({
+			require("pupV2").setup({
 				keymaps = {
 					list_buffers = "<leader>ls",
 					buffer_picker = "ç",
@@ -50,6 +50,6 @@ To customize keymaps: >
 		end
 <
 
-SETTINGS						*cakeV2-settings*
+SETTINGS						*pupV2-settings*
 
-g:cakeV2_config		Configuration table
+g:pupV2_config		Configuration table
