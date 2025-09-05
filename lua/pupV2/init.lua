@@ -573,7 +573,7 @@ function M.show_buffers_in_float()
 	for _, buf in ipairs(buffers) do
 		local status = buf.is_open and "·" or "_"
 		-- Usa a função truncate_path para garantir que o nome do arquivo seja visível
-		local truncated_path = truncate_path(buf.path, 60)  -- 60 caracteres de largura máxima
+		local truncated_path = truncate_path(buf.path, 65)  -- 60 caracteres de largura máxima
 
 		local line = string.format("  %s%d: %s", status, buf.number, truncated_path)
 		table.insert(lines, line)
