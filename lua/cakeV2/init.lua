@@ -559,7 +559,7 @@ function M.show_buffers_in_float()
 	-- Configurações da janela flutuante - CANTO INFERIOR ESQUERDO
 	-- local width = math.min(max_line_length + 2, 80)   -- Largura dinâmica com limite máximo
 	-- local height = #lines
-	local width = 69   -- Largura dinâmica com limite máximo
+	local width = 70   -- Largura dinâmica com limite máximo
 	local height = 25
 	local row = vim.o.lines - height - 1              -- Canto inferior
 	local col = 0                                     -- Canto esquerdo (colado na borda)
