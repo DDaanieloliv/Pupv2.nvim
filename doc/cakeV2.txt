@@ -8,20 +8,23 @@ A smart buffer manager that maintains persistent cache per working directory.
 
 INTRODUCTION					*cakeV2-intro*
 
-This plugin provides intelligent buffer management with:
+This plugin provides buffer management with:
 - Persistent cache of buffers per working directory
 - Quick navigation using buffer numbers
 - Automatic buffer tracking
-- Telescope integration handling
+- Telescope integration handling other wise providing a mini.pick's like UI
 
 COMMANDS						*cakeV2-commands*
 
 :B [number|name]					*:B*
 		List buffers or open specific buffer by number/name
 
+:B <CR>										*:B*
+    Show up a mini.pick's like UI with buffers's current working directory
+
 MAPPINGS						*cakeV2-mappings*
 
-<leader>ls		List buffers with UI selection
+<leader>ls		List buffers with UI selection, since you had Telescope setup
 <leader>q		Close current buffer (save and remove from cache)
 <leader>r		Remove last buffer from cache
 <leader>x		Clear buffers from current path (except current)
@@ -33,13 +36,20 @@ MAPPINGS						*cakeV2-mappings*
 CUSTOMIZATION					*cakeV2-customization*
 
 To customize keymaps: >
-	lua require('cakeV2').setup({
-		keymaps = {
-			list_buffers = "<leader>ls",
-			close_buffer = "<leader>q",
-			-- ... outros keymaps
-		}
-	})
+		config = function()
+			require("cakeV2").setup({
+				keymaps = {
+					list_buffers = "<leader>ls",
+					buffer_picker = "ç",
+					close_buffer = "<leader>q",
+					clear_path = "<leader>x",
+					remove_last = "<leader>r",
+					clear_cache = "<leader>cc",
+					move_backward = "<leader>[",
+					move_forward = "<leader>]"
+				}
+			})
+		end
 <
 
 SETTINGS						*cakeV2-settings*
