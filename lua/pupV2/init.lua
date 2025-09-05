@@ -641,7 +641,8 @@ function M.show_buffers_in_float()
 		highlight FloatBorder  guifg=#B9B8B4
 		highlight FloatTitle   guifg=#B9B8B4 guibg=black
 		highlight FloatFooter  guifg=#B9B8B4
-		highlight InputText    guifg=#A9B7C6
+		" highlight InputText    guifg=#A9B7C6
+		highlight InputText    guifg=#9484D2 gui=bold
 
 		" highlight PickBufferMatch guifg=#7A729A gui=bold
 		highlight PickBufferMatch guifg=#9484D2 gui=bold
