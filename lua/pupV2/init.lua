@@ -527,7 +527,41 @@ end
 
 
 
+-- Função para truncar o path de forma inteligente com substituição do home directory
+local function truncate_path(path, max_width)
+    local filename = vim.fn.fnamemodify(path, ":t")
+    local dir_path = vim.fn.fnamemodify(path, ":h")
 
+    -- Substitui o diretório home por ~
+    local home_dir = vim.fn.expand("~")
+    if dir_path:sub(1, #home_dir) == home_dir then
+        dir_path = "~" .. dir_path:sub(#home_dir + 1)
+    end
+
+    -- Se o path completo couber, retorna normal
+    local full_path = dir_path .. "/" .. filename
+    if #full_path <= max_width then
+        return full_path
+    end
+
+    -- Se só o filename já é maior que o máximo, truncamos o filename
+    if #filename >= max_width then
+        return "…" .. filename:sub(-max_width + 1)
+    end
+
+    -- Calcula espaço disponível para o diretório
+    local available_width = max_width - #filename - 1 -- -1 para o separador
+
+    -- Se o diretório for muito longo, truncamos com ellipsis no meio
+    if #dir_path > available_width then
+        local part_size = math.floor(available_width / 2) - 1
+        local first_part = dir_path:sub(1, part_size)
+        local last_part = dir_path:sub(-part_size)
+        return first_part .. "…" .. last_part .. "/" .. filename
+    end
+
+    return dir_path .. "/" .. filename
+end
 
 
 
@@ -535,43 +569,27 @@ function M.show_buffers_in_float()
 	local buffers = get_buffers_with_numbers()
 
 	-- Conteúdo da janela flutuante
-	-- local lines = {"Buffers:"}
 	local lines = {}
 	for _, buf in ipairs(buffers) do
 		local status = buf.is_open and "·" or "_"
-		-- Encurta o path da mesma forma que na completion
-		local short_path = vim.fn.fnamemodify(buf.path, ":~:")
-		local filename = vim.fn.fnamemodify(buf.path, ":t")
-		local path_without_filename = short_path:sub(1, #short_path - #filename)
+		-- Usa a função truncate_path para garantir que o nome do arquivo seja visível
+		local truncated_path = truncate_path(buf.path, 60)  -- 60 caracteres de largura máxima
 
-		local line = string.format("  %s%d: %s%s", status, buf.number, path_without_filename, filename)
+		local line = string.format("  %s%d: %s", status, buf.number, truncated_path)
 		table.insert(lines, line)
 	end
 
-	-- Calcular largura dinâmica baseada no conteúdo
-	local max_line_length = 0
-	for _, line in ipairs(lines) do
-		if #line > max_line_length then
-			max_line_length = #line
-		end
-	end
-
 	-- Configurações da janela flutuante - CANTO INFERIOR ESQUERDO
-	-- local width = math.min(max_line_length + 2, 80)   -- Largura dinâmica com limite máximo
-	-- local height = #lines
-	local width = 74   -- Largura dinâmica com limite máximo
+	local width = 74
 	local height = 25
-	local row = vim.o.lines - height - 1              -- Canto inferior
-	local col = 0                                     -- Canto esquerdo (colado na borda)
-
-
+	-- local height = math.min(25, #lines + 2)  -- Altura dinâmica baseada no número de buffers
+	local row = vim.o.lines - height - 1
+	local col = 0
 
 	local query = {}
-	local selected_index = 1  -- Índice do item selecionado
+	local selected_index = 1
+	local filtered_buffers = buffers
 
-
-
-	-- Criar buffer flutuante
 	local buf = vim.api.nvim_create_buf(false, true)
 	local win = vim.api.nvim_open_win(buf, true, {
 		relative = 'editor',
@@ -590,138 +608,51 @@ function M.show_buffers_in_float()
 			{ "╰", "FloatBorder" },
 			{ "│", "FloatBorder" },
 		},
-		-- -- Título na parte inferior direita
-		-- title = {
-		-- 	{ " > ", "FloatTitle" }
-		-- },
-		-- Título com cor diferente para o ">" e para o input
 		title = {
-			{ "> ", "PromptSymbol" },      -- Símbolo ">" com cor diferente
-			{ table.concat(query), "InputText" }  -- Texto do input com outra cor
+			{ "", "PromptSymbol" },
+			{ " " .. table.concat(query) .. "│ ", "InputText" }
 		},
-
-		title_pos = "left",     -- Título à direita
+		title_pos = "left",
 		footer = {
 			{ " Buffers ", "FloatFooter" }
 		},
-		footer_pos = "left",     -- Footer à esquerda
+		footer_pos = "left",
 	})
-
 
 	-- Configurar o buffer
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 	vim.api.nvim_buf_set_option(buf, 'modifiable', false)
 	vim.api.nvim_buf_set_option(buf, 'filetype', 'bufferlist')
 
-	-- CONFIGURAÇÕES DE HIGHLIGHT PARA A JANELA FLUTUANTE
-	-- Aplicar o highlight da linha do cursor
-	vim.api.nvim_win_set_option(win, 'cursorline', true)  -- Ativa cursorline
-	vim.api.nvim_win_set_option(win, 'cursorlineopt', 'both')  -- Destaca linha e número
+	-- Configurações de highlight
+	vim.api.nvim_win_set_option(win, 'cursorline', true)
+	vim.api.nvim_win_set_option(win, 'cursorlineopt', 'both')
 	vim.api.nvim_win_set_option(win, 'winhighlight', 'CursorLine:FloatCursorLine')
 
-
-	-- Definir highlight personalizado para CursorLine
 	vim.cmd([[
-				highlight FloatCursorLine guibg=#312f2d
-				]])
+		highlight FloatCursorLine guibg=#312f2d
+		highlight NormalFloat  guibg=#181715
+		highlight FloatBorder  guibg=#181715
+		highlight PromptSymbol guibg=#06070d
+		highlight InputText    guibg=#06070d
+		highlight FloatFooter  guibg=#181715
 
+		highlight PromptSymbol guifg=#B9B8B4
+		highlight FloatBorder  guifg=#B9B8B4
+		highlight FloatTitle   guifg=#B9B8B4 guibg=black
+		highlight FloatFooter  guifg=#B9B8B4
+		highlight InputText    guifg=#A9B7C6
 
-	-- Adicionar highlights personalizados (opcional)
-	vim.cmd([[
-				" highlight NormalNC guibg=none
-				highlight NormalFloat  guibg=#181715
-				highlight FloatBorder  guibg=#181715
+		highlight PickBufferMatch guifg=#7A729A gui=bold
+		highlight PickBufferMatchCurrent guifg=#FF6B6B gui=bold
+	]])
 
-				highlight PromptSymbol guibg=#06070d
-				highlight InputText    guibg=#06070d
-
-				highlight FloatFooter  guibg=#181715
-
-				highlight PromptSymbol guifg=#B9B8B4
-				highlight FloatBorder  guifg=#B9B8B4
-				highlight FloatTitle   guifg=#B9B8B4 guibg=black " guibg=#504945
-				highlight FloatFooter  guifg=#B9B8B4 " guibg=none " guibg=#3c3836
-				highlight InputText    guifg=#A9B7C6 " gui=bold
-				]])
-
-	-- -- Mapeamentos para fechar a janela
-	-- vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':q<CR>', { noremap = true, silent = true })
-	-- vim.api.nvim_buf_set_keymap(buf, 'n', '<ESC>', ':q<CR>', { noremap = true, silent = true })
-	--
-	-- -- Mapeamentos para selecionar buffer
-	for i = 1, #buffers do
-		if i <= 9 then     -- Apenas teclas 1-9
-			vim.api.nvim_buf_set_keymap(buf, 'n', tostring(i),
-				':lua require("pick-buffer")._select_buffer(' .. i .. ')<CR>',
-				{ noremap = true, silent = true })
-		end
-	end
-
-	-- -- Mapeamento para selecionar com Enter
+	-- Mapeamentos
 	vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>',
 		':lua require("pick-buffer")._select_current_buffer()<CR>',
 		{ noremap = true, silent = true })
 
-
-
-
-	-- local function update_display()
-	-- 	vim.api.nvim_buf_set_option(buf, 'modifiable', true)
-	--
-	-- 	-- Atualiza título
-	-- 	local title_text = "> " .. table.concat(query) .. " "
-	-- 	-- vim.api.nvim_win_set_config(win, {
-	-- 	-- 	title = { { title_text, "FloatTitle" } },
-	-- 	-- 	footer = { { " BUFFERS " } }
-	-- 	-- })
-	-- 	vim.api.nvim_win_set_config(win, {
-	-- 		title = {
-	-- 			{ "❭", "PromptSymbol" },
-	-- 			{ " " .. table.concat(query) .. "│ ", "InputText" }
-	-- 		},
-	-- 		footer = { { " BUFFERS " } }
-	-- 	})
-	--
-	-- 	-- Filtra buffers
-	-- 	if #query > 0 then
-	-- 		local search_term = table.concat(query):lower()
-	-- 		filtered_buffers = {}
-	-- 		for _, buf in ipairs(buffers) do
-	-- 			if buf.name:lower():find(search_term, 1, true) or
-	-- 				buf.path:lower():find(search_term, 1, true) then
-	-- 				table.insert(filtered_buffers, buf)
-	-- 			end
-	-- 		end
-	-- 	else
-	-- 		filtered_buffers = buffers
-	-- 	end
-	--
-	-- 	selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
-	--
-	-- 	-- Atualiza conteúdo COM SELEÇÃO VISUAL
-	-- 	local lines = {}
-	-- 	for i, buf in ipairs(filtered_buffers) do
-	-- 		-- local status = buf.is_open and "·" or "_"
-	-- 		local status = buf.is_open and " " or " _"
-	-- 		local selector = (i == selected_index) and "" or ""
-	-- 		local short_path = vim.fn.fnamemodify(buf.path, ":~:")
-	-- 		local filename = vim.fn.fnamemodify(buf.path, ":t")
-	-- 		local path_without_filename = short_path:sub(1, #short_path - #filename)
-	--
-	-- 		local line = string.format("%s%s%d: %s%s", selector, status, buf.number, path_without_filename, filename)
-	-- 		table.insert(lines, line)
-	-- 	end
-	--
-	-- 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-	-- 	vim.api.nvim_buf_set_option(buf, 'modifiable', false)
-	--
-	-- 	-- Move o cursor para o item selecionado
-	-- 	vim.api.nvim_win_set_cursor(win, {selected_index, 0})
-	-- 	vim.cmd("redraw")
-	-- end
-
-
-	-- Função update_display(), com highlight para matchs.
+	-- Função update_display com truncate
 	local function update_display()
 		vim.api.nvim_buf_set_option(buf, 'modifiable', true)
 
@@ -733,11 +664,6 @@ function M.show_buffers_in_float()
 			},
 			footer = { { " BUFFERS " } }
 		})
-
-		vim.cmd([[
-		highlight PickBufferMatch guifg=#7A729A gui=bold
-		highlight PickBufferMatchCurrent guifg=#FF6B6B gui=bold
-    ]])
 
 		-- Filtra buffers
 		if #query > 0 then
@@ -758,22 +684,21 @@ function M.show_buffers_in_float()
 		-- Limpa highlights anteriores
 		vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
 
-		-- Atualiza conteúdo
+		-- Atualiza conteúdo com paths truncados
 		local lines = {}
 		for i, buf_item in ipairs(filtered_buffers) do
 			local status = buf_item.is_open and " " or "🖹"
-			local short_path = vim.fn.fnamemodify(buf_item.path, ":~:")
-			local filename = vim.fn.fnamemodify(buf_item.path, ":t")
-			local path_without_filename = short_path:sub(1, #short_path - #filename)
+			-- Usa truncate_path para garantir que o nome do arquivo seja visível
+			local truncated_path = truncate_path(buf_item.path, 70)
 
-			local line = string.format("%s%d: %s%s", status, buf_item.number, path_without_filename, filename)
+			local line = string.format("%s%d: %s", status, buf_item.number, truncated_path)
 			table.insert(lines, line)
 		end
 
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 		vim.api.nvim_buf_set_option(buf, 'modifiable', false)
 
-		-- ADICIONE ESTA PARTE PARA HIGHLIGHT DOS MATCHES
+		-- Aplica highlight para matches
 		if #query > 0 then
 			local search_lower = table.concat(query):lower()
 
@@ -781,7 +706,6 @@ function M.show_buffers_in_float()
 				local line_text = lines[i]
 				local line_lower = line_text:lower()
 
-				-- Encontra todas as posições onde a query aparece
 				local start_pos = 1
 				while true do
 					local match_start, match_end = line_lower:find(search_lower, start_pos, true)
@@ -790,7 +714,7 @@ function M.show_buffers_in_float()
 					vim.api.nvim_buf_add_highlight(
 						buf,
 						ns_id,
-						'PickBufferMatch',  -- Seu highlight personalizado
+						'PickBufferMatch',
 						i - 1,
 						match_start - 1,
 						match_end
@@ -805,47 +729,29 @@ function M.show_buffers_in_float()
 		vim.cmd("redraw")
 	end
 
-
-
-
 	update_display()
 
-	-- LOOP PRINCIPAL COM NAVEGAÇÃO CTRL+TECLAS
+	-- Loop principal
 	while true do
 		local ok, key = pcall(vim.fn.getchar)
 		if not ok then break end
 
-		-- DETECÇÃO ESPECÍFICA PARA <80>kb
-		-- O backspace está vindo como um código especial, não como string
 		local is_backspace = false
 		local char_str = ""
 
-		-- Verifica se é o código especial do backspace (<80>kb)
 		if type(key) == "number" then
-			-- Para códigos numéricos, convertemos para string para verificar
 			char_str = vim.fn.nr2char(key)
-
-			-- Backspace tradicional (ASCII 8 ou 127)
 			if key == 8 or key == 127 then
 				is_backspace = true
 			end
 		else
-			-- Para strings, verificamos diretamente
 			char_str = key
 		end
 
-		-- Verifica se é o backspace especial <80>kb
 		if char_str:find("kb") or char_str:find("<80>") then
 			is_backspace = true
 		end
 
-		-- NAVEGAÇÃO
-		-- if key == 10 or char_str == 'J' then -- Ctrl+j ou 'J'
-		-- 	selected_index = math.min(#filtered_buffers, selected_index + 1)
-		-- 	update_display()
-		-- elseif key == 11 or char_str == 'K' then -- Ctrl+k ou 'K'
-		-- 	selected_index = math.max(1, selected_index - 1)
-		-- 	update_display()
 		if key == 10 then -- Ctrl+j
 			selected_index = math.min(#filtered_buffers, selected_index + 1)
 			update_display()
@@ -858,16 +764,12 @@ function M.show_buffers_in_float()
 		elseif key == 16 then -- Ctrl+p
 			selected_index = math.max(1, selected_index - 1)
 			update_display()
-
-			-- ⭐ TECLAS NUMÉRICAS
 		elseif tonumber(char_str) then
 			local num = tonumber(char_str)
 			if num <= #filtered_buffers then
 				selected_index = num
 				update_display()
 			end
-
-			-- AÇÕES
 		elseif key == 27 or char_str == '\27' then -- Escape
 			break
 		elseif key == 13 or char_str == '\13' then -- Enter
@@ -877,34 +779,397 @@ function M.show_buffers_in_float()
 				end
 			end)
 			break
-
-			-- elseif char_str == 'q' then -- Quit
-			-- 	break
-
-			-- BACKSPACE - CORREÇÃO PARA <80>kb
 		elseif is_backspace then
 			if #query > 0 then
 				table.remove(query)
 				selected_index = 1
 				update_display()
 			end
-
-			-- INPUT NORMAL
 		elseif char_str:match('%S') and #char_str == 1 then
 			table.insert(query, char_str)
 			selected_index = 1
 			update_display()
-
 		end
 	end
 
-
 	vim.api.nvim_win_close(win, true)
-
-
-	-- Salvar referência da janela flutuante para fechar depois
 	M._float_win = win
 end
+
+-- function M.show_buffers_in_float()
+-- 	local buffers = get_buffers_with_numbers()
+--
+-- 	-- Conteúdo da janela flutuante
+-- 	-- local lines = {"Buffers:"}
+-- 	local lines = {}
+-- 	for _, buf in ipairs(buffers) do
+-- 		local status = buf.is_open and "·" or "_"
+-- 		-- Encurta o path da mesma forma que na completion
+-- 		local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+-- 		local filename = vim.fn.fnamemodify(buf.path, ":t")
+-- 		local path_without_filename = short_path:sub(1, #short_path - #filename)
+--
+-- 		local line = string.format("  %s%d: %s%s", status, buf.number, path_without_filename, filename)
+-- 		table.insert(lines, line)
+-- 	end
+--
+-- 	-- Calcular largura dinâmica baseada no conteúdo
+-- 	local max_line_length = 0
+-- 	for _, line in ipairs(lines) do
+-- 		if #line > max_line_length then
+-- 			max_line_length = #line
+-- 		end
+-- 	end
+--
+-- 	-- Configurações da janela flutuante - CANTO INFERIOR ESQUERDO
+-- 	-- local width = math.min(max_line_length + 2, 80)   -- Largura dinâmica com limite máximo
+-- 	-- local height = #lines
+-- 	local width = 74   -- Largura dinâmica com limite máximo
+-- 	local height = 25
+-- 	local row = vim.o.lines - height - 1              -- Canto inferior
+-- 	local col = 0                                     -- Canto esquerdo (colado na borda)
+--
+--
+--
+-- 	local query = {}
+-- 	local selected_index = 1  -- Índice do item selecionado
+--
+--
+--
+-- 	-- Criar buffer flutuante
+-- 	local buf = vim.api.nvim_create_buf(false, true)
+-- 	local win = vim.api.nvim_open_win(buf, true, {
+-- 		relative = 'editor',
+-- 		width = width,
+-- 		height = height,
+-- 		row = row,
+-- 		col = col,
+-- 		style = 'minimal',
+-- 		border = {
+-- 			{ "╭", "FloatBorder" },
+-- 			{ "─", "FloatBorder" },
+-- 			{ "╮", "FloatBorder" },
+-- 			{ "│", "FloatBorder" },
+-- 			{ "╯", "FloatBorder" },
+-- 			{ "─", "FloatBorder" },
+-- 			{ "╰", "FloatBorder" },
+-- 			{ "│", "FloatBorder" },
+-- 		},
+-- 		-- -- Título na parte inferior direita
+-- 		-- title = {
+-- 		-- 	{ " > ", "FloatTitle" }
+-- 		-- },
+-- 		-- Título com cor diferente para o ">" e para o input
+-- 		title = {
+-- 			{ "> ", "PromptSymbol" },      -- Símbolo ">" com cor diferente
+-- 			{ table.concat(query), "InputText" }  -- Texto do input com outra cor
+-- 		},
+--
+-- 		title_pos = "left",     -- Título à direita
+-- 		footer = {
+-- 			{ " Buffers ", "FloatFooter" }
+-- 		},
+-- 		footer_pos = "left",     -- Footer à esquerda
+-- 	})
+--
+--
+-- 	-- Configurar o buffer
+-- 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+-- 	vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+-- 	vim.api.nvim_buf_set_option(buf, 'filetype', 'bufferlist')
+--
+-- 	-- CONFIGURAÇÕES DE HIGHLIGHT PARA A JANELA FLUTUANTE
+-- 	-- Aplicar o highlight da linha do cursor
+-- 	vim.api.nvim_win_set_option(win, 'cursorline', true)  -- Ativa cursorline
+-- 	vim.api.nvim_win_set_option(win, 'cursorlineopt', 'both')  -- Destaca linha e número
+-- 	vim.api.nvim_win_set_option(win, 'winhighlight', 'CursorLine:FloatCursorLine')
+--
+--
+-- 	-- Definir highlight personalizado para CursorLine
+-- 	vim.cmd([[
+-- 				highlight FloatCursorLine guibg=#312f2d
+-- 				]])
+--
+--
+-- 	-- Adicionar highlights personalizados (opcional)
+-- 	vim.cmd([[
+-- 				" highlight NormalNC guibg=none
+-- 				highlight NormalFloat  guibg=#181715
+-- 				highlight FloatBorder  guibg=#181715
+--
+-- 				highlight PromptSymbol guibg=#06070d
+-- 				highlight InputText    guibg=#06070d
+--
+-- 				highlight FloatFooter  guibg=#181715
+--
+-- 				highlight PromptSymbol guifg=#B9B8B4
+-- 				highlight FloatBorder  guifg=#B9B8B4
+-- 				highlight FloatTitle   guifg=#B9B8B4 guibg=black " guibg=#504945
+-- 				highlight FloatFooter  guifg=#B9B8B4 " guibg=none " guibg=#3c3836
+-- 				highlight InputText    guifg=#A9B7C6 " gui=bold
+-- 				]])
+--
+-- 	-- -- Mapeamentos para fechar a janela
+-- 	-- vim.api.nvim_buf_set_keymap(buf, 'n', 'q', ':q<CR>', { noremap = true, silent = true })
+-- 	-- vim.api.nvim_buf_set_keymap(buf, 'n', '<ESC>', ':q<CR>', { noremap = true, silent = true })
+-- 	--
+-- 	-- -- Mapeamentos para selecionar buffer
+-- 	for i = 1, #buffers do
+-- 		if i <= 9 then     -- Apenas teclas 1-9
+-- 			vim.api.nvim_buf_set_keymap(buf, 'n', tostring(i),
+-- 				':lua require("pick-buffer")._select_buffer(' .. i .. ')<CR>',
+-- 				{ noremap = true, silent = true })
+-- 		end
+-- 	end
+--
+-- 	-- -- Mapeamento para selecionar com Enter
+-- 	vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>',
+-- 		':lua require("pick-buffer")._select_current_buffer()<CR>',
+-- 		{ noremap = true, silent = true })
+--
+--
+--
+--
+-- 	-- local function update_display()
+-- 	-- 	vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+-- 	--
+-- 	-- 	-- Atualiza título
+-- 	-- 	local title_text = "> " .. table.concat(query) .. " "
+-- 	-- 	-- vim.api.nvim_win_set_config(win, {
+-- 	-- 	-- 	title = { { title_text, "FloatTitle" } },
+-- 	-- 	-- 	footer = { { " BUFFERS " } }
+-- 	-- 	-- })
+-- 	-- 	vim.api.nvim_win_set_config(win, {
+-- 	-- 		title = {
+-- 	-- 			{ "❭", "PromptSymbol" },
+-- 	-- 			{ " " .. table.concat(query) .. "│ ", "InputText" }
+-- 	-- 		},
+-- 	-- 		footer = { { " BUFFERS " } }
+-- 	-- 	})
+-- 	--
+-- 	-- 	-- Filtra buffers
+-- 	-- 	if #query > 0 then
+-- 	-- 		local search_term = table.concat(query):lower()
+-- 	-- 		filtered_buffers = {}
+-- 	-- 		for _, buf in ipairs(buffers) do
+-- 	-- 			if buf.name:lower():find(search_term, 1, true) or
+-- 	-- 				buf.path:lower():find(search_term, 1, true) then
+-- 	-- 				table.insert(filtered_buffers, buf)
+-- 	-- 			end
+-- 	-- 		end
+-- 	-- 	else
+-- 	-- 		filtered_buffers = buffers
+-- 	-- 	end
+-- 	--
+-- 	-- 	selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
+-- 	--
+-- 	-- 	-- Atualiza conteúdo COM SELEÇÃO VISUAL
+-- 	-- 	local lines = {}
+-- 	-- 	for i, buf in ipairs(filtered_buffers) do
+-- 	-- 		-- local status = buf.is_open and "·" or "_"
+-- 	-- 		local status = buf.is_open and " " or " _"
+-- 	-- 		local selector = (i == selected_index) and "" or ""
+-- 	-- 		local short_path = vim.fn.fnamemodify(buf.path, ":~:")
+-- 	-- 		local filename = vim.fn.fnamemodify(buf.path, ":t")
+-- 	-- 		local path_without_filename = short_path:sub(1, #short_path - #filename)
+-- 	--
+-- 	-- 		local line = string.format("%s%s%d: %s%s", selector, status, buf.number, path_without_filename, filename)
+-- 	-- 		table.insert(lines, line)
+-- 	-- 	end
+-- 	--
+-- 	-- 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+-- 	-- 	vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+-- 	--
+-- 	-- 	-- Move o cursor para o item selecionado
+-- 	-- 	vim.api.nvim_win_set_cursor(win, {selected_index, 0})
+-- 	-- 	vim.cmd("redraw")
+-- 	-- end
+--
+--
+-- 	-- Função update_display(), com highlight para matchs.
+-- 	local function update_display()
+-- 		vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+--
+-- 		-- Atualiza título
+-- 		vim.api.nvim_win_set_config(win, {
+-- 			title = {
+-- 				{ "", "PromptSymbol" },
+-- 				{ " " .. table.concat(query) .. "│ ", "InputText" }
+-- 			},
+-- 			footer = { { " BUFFERS " } }
+-- 		})
+--
+-- 		vim.cmd([[
+-- 		highlight PickBufferMatch guifg=#7A729A gui=bold
+-- 		highlight PickBufferMatchCurrent guifg=#FF6B6B gui=bold
+--     ]])
+--
+-- 		-- Filtra buffers
+-- 		if #query > 0 then
+-- 			local search_term = table.concat(query):lower()
+-- 			filtered_buffers = {}
+-- 			for _, buf_item in ipairs(buffers) do
+-- 				if buf_item.name:lower():find(search_term, 1, true) or
+-- 					buf_item.path:lower():find(search_term, 1, true) then
+-- 					table.insert(filtered_buffers, buf_item)
+-- 				end
+-- 			end
+-- 		else
+-- 			filtered_buffers = buffers
+-- 		end
+--
+-- 		selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
+--
+-- 		-- Limpa highlights anteriores
+-- 		vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+--
+-- 		-- Atualiza conteúdo
+-- 		local lines = {}
+-- 		for i, buf_item in ipairs(filtered_buffers) do
+-- 			local status = buf_item.is_open and " " or "🖹"
+-- 			local short_path = vim.fn.fnamemodify(buf_item.path, ":~:")
+-- 			local filename = vim.fn.fnamemodify(buf_item.path, ":t")
+-- 			local path_without_filename = short_path:sub(1, #short_path - #filename)
+--
+-- 			local line = string.format("%s%d: %s%s", status, buf_item.number, path_without_filename, filename)
+-- 			table.insert(lines, line)
+-- 		end
+--
+-- 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+-- 		vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+--
+-- 		-- ADICIONE ESTA PARTE PARA HIGHLIGHT DOS MATCHES
+-- 		if #query > 0 then
+-- 			local search_lower = table.concat(query):lower()
+--
+-- 			for i, buf_item in ipairs(filtered_buffers) do
+-- 				local line_text = lines[i]
+-- 				local line_lower = line_text:lower()
+--
+-- 				-- Encontra todas as posições onde a query aparece
+-- 				local start_pos = 1
+-- 				while true do
+-- 					local match_start, match_end = line_lower:find(search_lower, start_pos, true)
+-- 					if not match_start then break end
+--
+-- 					vim.api.nvim_buf_add_highlight(
+-- 						buf,
+-- 						ns_id,
+-- 						'PickBufferMatch',  -- Seu highlight personalizado
+-- 						i - 1,
+-- 						match_start - 1,
+-- 						match_end
+-- 					)
+-- 					start_pos = match_end + 1
+-- 				end
+-- 			end
+-- 		end
+--
+-- 		-- Move o cursor para o item selecionado
+-- 		vim.api.nvim_win_set_cursor(win, {selected_index, 0})
+-- 		vim.cmd("redraw")
+-- 	end
+--
+--
+--
+--
+-- 	update_display()
+--
+-- 	-- LOOP PRINCIPAL COM NAVEGAÇÃO CTRL+TECLAS
+-- 	while true do
+-- 		local ok, key = pcall(vim.fn.getchar)
+-- 		if not ok then break end
+--
+-- 		-- DETECÇÃO ESPECÍFICA PARA <80>kb
+-- 		-- O backspace está vindo como um código especial, não como string
+-- 		local is_backspace = false
+-- 		local char_str = ""
+--
+-- 		-- Verifica se é o código especial do backspace (<80>kb)
+-- 		if type(key) == "number" then
+-- 			-- Para códigos numéricos, convertemos para string para verificar
+-- 			char_str = vim.fn.nr2char(key)
+--
+-- 			-- Backspace tradicional (ASCII 8 ou 127)
+-- 			if key == 8 or key == 127 then
+-- 				is_backspace = true
+-- 			end
+-- 		else
+-- 			-- Para strings, verificamos diretamente
+-- 			char_str = key
+-- 		end
+--
+-- 		-- Verifica se é o backspace especial <80>kb
+-- 		if char_str:find("kb") or char_str:find("<80>") then
+-- 			is_backspace = true
+-- 		end
+--
+-- 		-- NAVEGAÇÃO
+-- 		-- if key == 10 or char_str == 'J' then -- Ctrl+j ou 'J'
+-- 		-- 	selected_index = math.min(#filtered_buffers, selected_index + 1)
+-- 		-- 	update_display()
+-- 		-- elseif key == 11 or char_str == 'K' then -- Ctrl+k ou 'K'
+-- 		-- 	selected_index = math.max(1, selected_index - 1)
+-- 		-- 	update_display()
+-- 		if key == 10 then -- Ctrl+j
+-- 			selected_index = math.min(#filtered_buffers, selected_index + 1)
+-- 			update_display()
+-- 		elseif key == 11 then -- Ctrl+k
+-- 			selected_index = math.max(1, selected_index - 1)
+-- 			update_display()
+-- 		elseif key == 14 then -- Ctrl+n
+-- 			selected_index = math.min(#filtered_buffers, selected_index + 1)
+-- 			update_display()
+-- 		elseif key == 16 then -- Ctrl+p
+-- 			selected_index = math.max(1, selected_index - 1)
+-- 			update_display()
+--
+-- 			-- ⭐ TECLAS NUMÉRICAS
+-- 		elseif tonumber(char_str) then
+-- 			local num = tonumber(char_str)
+-- 			if num <= #filtered_buffers then
+-- 				selected_index = num
+-- 				update_display()
+-- 			end
+--
+-- 			-- AÇÕES
+-- 		elseif key == 27 or char_str == '\27' then -- Escape
+-- 			break
+-- 		elseif key == 13 or char_str == '\13' then -- Enter
+-- 			vim.schedule(function()
+-- 				if #filtered_buffers > 0 then
+-- 					M._select_buffer(filtered_buffers[selected_index].number)
+-- 				end
+-- 			end)
+-- 			break
+--
+-- 			-- elseif char_str == 'q' then -- Quit
+-- 			-- 	break
+--
+-- 			-- BACKSPACE - CORREÇÃO PARA <80>kb
+-- 		elseif is_backspace then
+-- 			if #query > 0 then
+-- 				table.remove(query)
+-- 				selected_index = 1
+-- 				update_display()
+-- 			end
+--
+-- 			-- INPUT NORMAL
+-- 		elseif char_str:match('%S') and #char_str == 1 then
+-- 			table.insert(query, char_str)
+-- 			selected_index = 1
+-- 			update_display()
+--
+-- 		end
+-- 	end
+--
+--
+-- 	vim.api.nvim_win_close(win, true)
+--
+--
+-- 	-- Salvar referência da janela flutuante para fechar depois
+-- 	M._float_win = win
+-- end
 
 
 
