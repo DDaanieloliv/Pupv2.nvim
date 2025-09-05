@@ -18,8 +18,6 @@ COMMANDS						*cakeV2-commands*
 
 :B [number|name]					*:B*
 		List buffers or open specific buffer by number/name
-
-:B <CR>										*:B*
     Show up a mini.pick's like UI with buffers's current working directory
 
 MAPPINGS						*cakeV2-mappings*
