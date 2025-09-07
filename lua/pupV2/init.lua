@@ -381,72 +381,6 @@ end
 
 
 
-function M.test_title_input()
-	local query = {}
-
-	local buf = vim.api.nvim_create_buf(false, true)
-	local win = vim.api.nvim_open_win(buf, true, {
-		relative = 'editor',
-		width = 60,
-		height = 10,
-		row = 5,
-		col = 10,
-		style = 'minimal',
-		border = 'single',
-		title = { { "> ", "FloatTitle" } },
-		title_pos = "left",
-	})
-
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
-		"Digite no título acima ↑",
-		"",
-		"Backspace: apagar",
-		"Enter: confirmar",
-		"ESC: sair"
-	})
-
-	local function update_title()
-		local title_text = "> " .. table.concat(query)
-		vim.api.nvim_win_set_config(win, {
-			title = { { title_text, "FloatTitle" } }
-		})
-		vim.cmd("redraw")
-	end
-
-	update_title()
-
-	while true do
-		local ok, char = pcall(vim.fn.getcharstr)
-		if not ok then break end
-
-		-- Verifica se é Backspace (todas as representações possíveis)
-		local is_backspace = char == '\8' or char == '\127' or char == '<80>kb' or char:find('kb$')
-
-		if char == '\27' then -- Escape
-			break
-		elseif char == '\13' then -- Enter
-			vim.notify("Confirmado: " .. table.concat(query), vim.log.levels.INFO)
-			break
-		elseif is_backspace then -- Backspace
-			if #query > 0 then
-				table.remove(query)
-				update_title()
-			end
-		elseif char:match('^[%g%s]$') then -- Caracteres normais
-			table.insert(query, char)
-			update_title()
-		end
-	end
-
-	vim.api.nvim_win_close(win, true)
-	vim.api.nvim_buf_delete(buf, {force = true})
-end
-
-
-
-
-
-
 
 function M.buffer_command(args)
 	-- Verifica se args é uma string (quando chamado via comando)
@@ -1319,21 +1253,29 @@ function M.setup_keymaps()
 
 end
 
--- Autocommands
+
+
+-- Setting up Autocommands to track events.
 function M.setup_autocmds()
-	-- Id group
 	local augroup = vim.api.nvim_create_augroup("PickBufferAutoCmds", {})
 
+  --[[
+  Create a trigger to BufEnter $event.
+  ]]
 	vim.api.nvim_create_autocmd("BufEnter", {
 		group = augroup,
 
-		-- A keyword'callback', necessária pq o como passamos uma tabela como argumento
-		-- não ter palavras chaves como 'group' ou 'callback' causaria um erro pois a
-		-- api do lua não entenderia como ler essa tabela visto que se não usassemos a
-		-- keyword 'callback' a função seria considerada um indice.
+    --[[
+		A keyword'callback', necessária pq o como passamos uma tabela como argumento
+		não ter palavras chaves como 'group' ou 'callback' causaria um erro pois a
+		api do lua não entenderia como ler essa tabela visto que se não usassemos a
+		keyword 'callback' a função seria considerada um indice.
+    ]]
 		callback = function(args)
-			-- O parâmetro 'args' é Tabela que o Neovim passa automaticamente para a callback
-			-- quando o evento ocorre. args.buf contém o número do buffer onde o evento aconteceu.
+      --[[
+			O parâmetro 'args' é Tabela que o Neovim passa automaticamente para a callback
+			quando o evento ocorre. args.buf contém o número do buffer onde o evento aconteceu.
+      ]]
 			local buf = args.buf
 			if is_valid_buffer(buf) and not is_plugin_buffer(buf) then
 				add_buffer_to_cache(buf)
@@ -1341,6 +1283,10 @@ function M.setup_autocmds()
 		end,
 	})
 
+
+  --[[
+  Create a trigger to DirChanged $event.
+  ]]
 	vim.api.nvim_create_autocmd("DirChanged", {
 		group = augroup,
 
