@@ -630,7 +630,7 @@ function M.show_buffers_in_float()
 		for i, buf_item in ipairs(filtered_buffers) do
 			local status = buf_item.is_open and " " or "🖹"
 			-- Usa truncate_path para garantir que o nome do arquivo seja visível
-			local truncated_path = truncate_path(buf_item.path, 70)
+			local truncated_path = truncate_path(buf_item.path, 69)
 
 			local line = string.format("%s%d: %s", status, buf_item.number, truncated_path)
 			table.insert(lines, line)
@@ -693,7 +693,14 @@ function M.show_buffers_in_float()
 			is_backspace = true
 		end
 
-		if key == 10 then -- Ctrl+j
+    if key == 12 then -- Ctrl+l
+			vim.schedule(function()
+				if #filtered_buffers > 0 then
+					M._select_buffer(filtered_buffers[selected_index].number)
+				end
+			end)
+			break
+    elseif key == 10 then -- Ctrl+j
 			selected_index = math.min(#filtered_buffers, selected_index + 1)
 			update_display()
 		elseif key == 11 then -- Ctrl+k
@@ -705,6 +712,10 @@ function M.show_buffers_in_float()
 		elseif key == 16 then -- Ctrl+p
 			selected_index = math.max(1, selected_index - 1)
 			update_display()
+    elseif key == 9 then -- TAB
+      -- selected_index = math.min(#filtered_buffers, selected_index + 1)
+      selected_index = (selected_index % #filtered_buffers) + 1
+      update_display()
 		elseif tonumber(char_str) then
 			local num = tonumber(char_str)
 			if num <= #filtered_buffers then
