@@ -628,7 +628,8 @@ function M.show_buffers_in_float()
 		-- Atualiza conteúdo com paths truncados
 		local lines = {}
 		for i, buf_item in ipairs(filtered_buffers) do
-			local status = buf_item.is_open and " " or "🖹"
+			-- local status = buf_item.is_open and " " or "🖹"
+			local status = buf_item.is_open and "🖹" or "🖹"
 			-- Usa truncate_path para garantir que o nome do arquivo seja visível
 			local truncated_path = truncate_path(buf_item.path, 69)
 
