@@ -701,6 +701,13 @@ function M.show_buffers_in_float()
 				end
 			end)
 			break
+    elseif key == 32 then -- Ctrl+l
+			vim.schedule(function()
+				if #filtered_buffers > 0 then
+					M._select_buffer(filtered_buffers[selected_index].number)
+				end
+			end)
+			break
     elseif key == 10 then -- Ctrl+j
 			selected_index = math.min(#filtered_buffers, selected_index + 1)
 			update_display()
