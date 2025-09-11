@@ -1,4 +1,4 @@
-" sweetCakeV2.nvim - buffer manager with persistent cache
+" PupV2.nvim - buffer manager with persistent cache
 " Last Change: 2025
 " Maintainer: Daniel Oliveira daniel0333v@gamil.com
 " License: MIT
