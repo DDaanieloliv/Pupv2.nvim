@@ -86,7 +86,7 @@ local function close_telescope_windows()
 	end
 end
 
--- Sistema de cache
+-- Cache system
 local function setup_cache()
 	if vim.fn.isdirectory(M.config.cache_dir) == 0 then
 		vim.fn.mkdir(M.config.cache_dir, "p")
@@ -448,7 +448,7 @@ local function truncate_path(path, max_width)
     local filename = vim.fn.fnamemodify(path, ":t")
     local dir_path = vim.fn.fnamemodify(path, ":h")
 
-    -- Substitui o diretório home por ~
+    -- Replaces home directory with ~
     local home_dir = vim.fn.expand("~")
     if dir_path:sub(1, #home_dir) == home_dir then
         dir_path = "~" .. dir_path:sub(#home_dir + 1)
@@ -622,7 +622,7 @@ function M.show_buffers_in_float()
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 		vim.api.nvim_buf_set_option(buf, 'modifiable', false)
 
-		-- Aplica highlight para matches
+		-- Apply highlight to matches
 		if #query > 0 then
 			local search_lower = table.concat(query):lower()
 
@@ -766,7 +766,7 @@ end
 -- Function to select buffer of current line
 function M._select_current_buffer()
 	local line = vim.api.nvim_get_current_line()
-	-- Extrai o número do buffer da linha (novo formato: " 1: path")
+	-- Extracts the buffer number from the line (new shape: " 1: path")
 	local buffer_number = line:match('%s*[%*_]%s*(%d+):')
 
 	if buffer_number then
