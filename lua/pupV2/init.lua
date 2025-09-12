@@ -164,7 +164,7 @@ local function remove_buffer_from_cache(path, force)
 	for i, item in ipairs(cache_data[current_path]) do
 		if item.path == path then
 			if #cache_data[current_path] == 1 and not force then
-				vim.notify("Não é possível remover o último buffer do path atual!", vim.log.levels.WARN)
+				vim.notify("Cannot remove the last buffer of the current path!", vim.log.levels.WARN)
 				return false
 			end
 
@@ -182,13 +182,13 @@ local function remove_last_buffer_from_cache()
 	local cache_data = load_cache()
 
 	if not cache_data[current_path] or #cache_data[current_path] == 0 then
-		vim.notify("Nenhum buffer para remover neste path!", vim.log.levels.WARN)
+		vim.notify("No buffers to remove on this path!", vim.log.levels.WARN)
 		return
 	end
 
 	local last_buffer = cache_data[current_path][#cache_data[current_path]]
 	if last_buffer.path == current_buf_name then
-		vim.notify("Remoção não sucedida devido o último buffer ser seu buffer atual", vim.log.levels.WARN)
+		vim.notify("Unsuccessful removal due to the last buffer being your current buffer", vim.log.levels.WARN)
 		return
 	end
 
@@ -198,9 +198,9 @@ local function remove_last_buffer_from_cache()
 
 	if buf_to_close and buf_to_close ~= vim.api.nvim_get_current_buf() then
 		vim.api.nvim_buf_delete(buf_to_close, { force = true })
-		vim.notify("Último buffer removido do cache e fechado", vim.log.levels.INFO)
+		vim.notify("Last buffer closed and removed from cache", vim.log.levels.INFO)
 	else
-		vim.notify("Último buffer removido do cache", vim.log.levels.INFO)
+		vim.notify("Last buffer removed from cache", vim.log.levels.INFO)
 	end
 end
 
@@ -246,7 +246,7 @@ local function clear_cache()
 	end
 
 	save_cache(new_cache)
-	vim.notify("Cache limpo! Apenas o buffer atual foi mantido.", vim.log.levels.INFO)
+	vim.notify("Cache clean! Only the current buffer was kept.", vim.log.levels.INFO)
 end
 
 local function clear_current_path_buffers()
@@ -280,7 +280,7 @@ local function clear_current_path_buffers()
 							vim.cmd("silent w!")
 						end)
 						if not ok then
-							vim.notify("Erro ao salvar " .. item.path .. ": " .. err, vim.log.levels.ERROR)
+							vim.notify("Error when saving " .. item.path .. ": " .. err, vim.log.levels.ERROR)
 						end
 					end
 					pcall(vim.api.nvim_buf_delete, buf, { force = true })
@@ -292,7 +292,7 @@ local function clear_current_path_buffers()
 	save_cache(new_cache)
 	pcall(vim.cmd, "silent! call clearmatches()")
 	pcall(vim.cmd, "silent! call histdel('/', -1)")
-	vim.notify("Buffers do path atual foram salvos e fechados", vim.log.levels.INFO)
+	vim.notify("Current path buffers have been saved and closed", vim.log.levels.INFO)
 end
 
 local function move_buffer_forward()
@@ -302,7 +302,7 @@ local function move_buffer_forward()
 	local cache_data = load_cache()
 
 	if not cache_data[current_path] or #cache_data[current_path] < 2 then
-		vim.notify("Não há buffers suficientes para mover", vim.log.levels.WARN)
+		vim.notify("There are not enough buffers to move", vim.log.levels.WARN)
 		return
 	end
 
@@ -315,7 +315,7 @@ local function move_buffer_forward()
 	end
 
 	if not current_index or current_index == #cache_data[current_path] then
-		vim.notify("Buffer já está na última posição", vim.log.levels.INFO)
+		vim.notify("Buffer already in last position", vim.log.levels.INFO)
 		return
 	end
 
@@ -323,7 +323,7 @@ local function move_buffer_forward()
 	cache_data[current_path][current_index + 1], cache_data[current_path][current_index]
 
 	save_cache(cache_data)
-	vim.notify(string.format("Buffer movido para a posição %d", current_index + 1), vim.log.levels.INFO)
+	vim.notify(string.format("Buffer moved to position %d", current_index + 1), vim.log.levels.INFO)
 end
 
 local function move_buffer_backward()
@@ -333,7 +333,7 @@ local function move_buffer_backward()
 	local cache_data = load_cache()
 
 	if not cache_data[current_path] or #cache_data[current_path] < 2 then
-		vim.notify("Não há buffers suficientes para mover", vim.log.levels.WARN)
+		vim.notify("There are not enough buffers to move", vim.log.levels.WARN)
 		return
 	end
 
@@ -346,7 +346,7 @@ local function move_buffer_backward()
 	end
 
 	if not current_index or current_index == 1 then
-		vim.notify("Buffer já está na primeira posição", vim.log.levels.INFO)
+		vim.notify("Buffer already on first position", vim.log.levels.INFO)
 		return
 	end
 
@@ -354,7 +354,7 @@ local function move_buffer_backward()
 	cache_data[current_path][current_index - 1], cache_data[current_path][current_index]
 
 	save_cache(cache_data)
-	vim.notify(string.format("Buffer movido para a posição %d", current_index - 1), vim.log.levels.INFO)
+	vim.notify(string.format("Buffer moved to position %d", current_index - 1), vim.log.levels.INFO)
 end
 
 
@@ -432,11 +432,11 @@ function M.buffer_command(args)
 				vim.cmd('edit ' .. vim.fn.fnameescape(found_buffer.path))
 			end
 		else
-			vim.notify("Arquivo não encontrado: " .. found_buffer.path, vim.log.levels.ERROR)
+			vim.notify("File Not found: " .. found_buffer.path, vim.log.levels.ERROR)
 			remove_buffer_from_cache(found_buffer.path, true)
 		end
 	else
-		vim.notify("Buffer não encontrado: " .. target, vim.log.levels.WARN)
+		vim.notify("Buffer not found: " .. target, vim.log.levels.WARN)
 	end
 end
 
@@ -656,96 +656,99 @@ function M.show_buffers_in_float()
 	update_display()
 
 	-- Main Loop
-	while true do
-		local ok, key = pcall(vim.fn.getchar)
-		if not ok then break end
+  while true do
+    local ok, char_str = pcall(vim.fn.getcharstr) -- ← MUDOU PARA getcharstr()
+    if not ok then break end
 
-		local is_backspace = false
-		local char_str = ""
+    -- Detecta Alt+Number (special keys)
+    if #char_str == 4 then
+      local byte1, byte2, byte3, byte4 = char_str:byte(1), char_str:byte(2), char_str:byte(3), char_str:byte(4)
 
-		if type(key) == "number" then
-			char_str = vim.fn.nr2char(key)
-			if key == 8 or key == 127 then
-				is_backspace = true
-			end
-		else
-			char_str = key
-		end
+      -- Exactly default: <80><fc>^H[1-9]
+      if byte1 == 128 and byte2 == 252 and byte3 == 8 and byte4 >= 49 and byte4 <= 57 then
+        local ctrl_number = byte4 - 48 -- Convert ASCII to number (49->1, 50->2, etc.)
+        vim.schedule(function()
+          if ctrl_number <= #filtered_buffers then
+            M._select_buffer(filtered_buffers[ctrl_number].number)
+          end
+        end)
+        break
+      end
+    end
 
-		if char_str:find("kb") or char_str:find("<80>") then
-			is_backspace = true
-		end
+    -- Detect backspaces (all variants)
+    local is_backspace = char_str == '\8' or char_str == '\127' or char_str:find("kb") or char_str:find("<80>")
 
-    if key == 12 then -- Ctrl+l
-			vim.schedule(function()
-				if #filtered_buffers > 0 then
-					M._select_buffer(filtered_buffers[selected_index].number)
-				end
-			end)
-			break
-    elseif key == 32 then -- space
-			vim.schedule(function()
-				if #filtered_buffers > 0 then
-					M._select_buffer(filtered_buffers[selected_index].number)
-				end
-			end)
-			break
-    elseif key == 79 then -- O
-			vim.schedule(function()
-				if #filtered_buffers > 0 then
-					M._select_buffer(filtered_buffers[selected_index].number)
-				end
-			end)
-			break
-    elseif key == 74 then -- J
-			selected_index = math.min(#filtered_buffers, selected_index + 1)
-			update_display()
-		elseif key == 75 then -- K
-			selected_index = math.max(1, selected_index - 1)
-			update_display()
-    elseif key == 10 then -- Ctrl+j
-			selected_index = math.min(#filtered_buffers, selected_index + 1)
-			update_display()
-		elseif key == 11 then -- Ctrl+k
-			selected_index = math.max(1, selected_index - 1)
-			update_display()
-		elseif key == 14 then -- Ctrl+n
-			selected_index = math.min(#filtered_buffers, selected_index + 1)
-			update_display()
-		elseif key == 16 then -- Ctrl+p
-			selected_index = math.max(1, selected_index - 1)
-			update_display()
-    elseif key == 9 then -- TAB
-      -- selected_index = math.min(#filtered_buffers, selected_index + 1)
+    -- Check keys by their string representation
+    if char_str == '\12' then -- Ctrl+l (form feed)
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M._select_buffer(filtered_buffers[selected_index].number)
+        end
+      end)
+      break
+    elseif char_str == ' ' then -- space
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M._select_buffer(filtered_buffers[selected_index].number)
+        end
+      end)
+      break
+    elseif char_str == 'O' then
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M._select_buffer(filtered_buffers[selected_index].number)
+        end
+      end)
+      break
+    elseif char_str == 'J' then -- J
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == 'K' then -- K
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\10' then -- Ctrl+j (line feed)
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == '\11' then -- Ctrl+k (vertical tab)
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\14' then -- Ctrl+n (shift out)
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == '\16' then -- Ctrl+p (data link escape)
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\9' then -- TAB
       selected_index = (selected_index % #filtered_buffers) + 1
       update_display()
-		elseif tonumber(char_str) then
-			local num = tonumber(char_str)
-			if num <= #filtered_buffers then
-				selected_index = num
-				update_display()
-			end
-		elseif key == 27 or char_str == '\27' then -- Escape
-			break
-		elseif key == 13 or char_str == '\13' then -- Enter
-			vim.schedule(function()
-				if #filtered_buffers > 0 then
-					M._select_buffer(filtered_buffers[selected_index].number)
-				end
-			end)
-			break
-		elseif is_backspace then
-			if #query > 0 then
-				table.remove(query)
-				selected_index = 1
-				update_display()
-			end
-		elseif char_str:match('%S') and #char_str == 1 then
-			table.insert(query, char_str)
-			selected_index = 1
-			update_display()
-		end
-	end
+    -- elseif tonumber(char_str) then -- Numbers 0-9
+    --   local num = tonumber(char_str)
+    --   if num <= #filtered_buffers then
+    --     selected_index = num
+    --     update_display()
+    --   end
+    elseif char_str == '\27' then -- Escape
+      break
+    elseif char_str == '\13' then -- Enter
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M._select_buffer(filtered_buffers[selected_index].number)
+        end
+      end)
+      break
+    elseif is_backspace then
+      if #query > 0 then
+        table.remove(query)
+        selected_index = 1
+        update_display()
+      end
+    elseif #char_str == 1 and char_str:match('%S') then -- Search characters
+      table.insert(query, char_str)
+      selected_index = 1
+      update_display()
+    end
+  end
 
 	vim.api.nvim_win_close(win, true)
 	M._float_win = win
@@ -820,12 +823,12 @@ end
 function M.setup_keymaps()
 	local keymaps = M.config.keymaps
 
-	vim.keymap.set('n', '<leader>bf', M.show_buffers_in_float, { desc = 'Mostrar buffers em janela flutuante' })
+	vim.keymap.set('n', '<leader>bf', M.show_buffers_in_float, { desc = 'Show buffer in a float window' })
 
-	vim.keymap.set("n", keymaps.list_buffers, M.list_buffers, { desc = "Listar buffers (com cache)" })
-	vim.keymap.set("n", keymaps.move_backward, move_buffer_backward, { desc = "Mover buffer para trás na lista" })
-	vim.keymap.set("n", keymaps.move_forward, move_buffer_forward, { desc = "Mover buffer para frente na lista" })
-	vim.keymap.set('n', keymaps.buffer_picker, ':B ', { desc = 'Abrir buffer por número' })
+	vim.keymap.set("n", keymaps.list_buffers, M.list_buffers, { desc = "List buffers (with cache)" })
+	vim.keymap.set("n", keymaps.move_backward, move_buffer_backward, { desc = "Move buffer backward in list" })
+	vim.keymap.set("n", keymaps.move_forward, move_buffer_forward, { desc = "Move buffer forward in list" })
+	vim.keymap.set('n', keymaps.buffer_picker, ':B ', { desc = 'Open buffer by number' })
 
 	vim.keymap.set("n", keymaps.close_buffer, function()
 		if is_telescope_window() then
@@ -833,12 +836,12 @@ function M.setup_keymaps()
 			return
 		end
 		M.close_current_buffer()
-	end, { desc = "Salvar, remover do cache e fechar buffer" })
+	end, { desc = "Save, remove cache and close buffer" })
 
 	vim.keymap.set("n", keymaps.clear_path, clear_current_path_buffers,
-		{ desc = "Limpar buffers do path atual (exceto o atual)" })
-	vim.keymap.set("n", keymaps.remove_last, remove_last_buffer_from_cache, { desc = "Remover último buffer do cache" })
-	vim.keymap.set("n", keymaps.clear_cache, clear_cache, { desc = "Limpar todo o cache de buffers" })
+		{ desc = "Clear buffers of the current path (except the current one)" })
+	vim.keymap.set("n", keymaps.remove_last, remove_last_buffer_from_cache, { desc = "Remove last buffer from cache" })
+	vim.keymap.set("n", keymaps.clear_cache, clear_cache, { desc = "Clear all buffer cache" })
 
 
 
@@ -866,9 +869,9 @@ function M.setup_keymaps()
 			if buffers[i] then
 				M.buffer_command({ args = tostring(i) })
 			else
-				vim.notify("Não há buffer na posição " .. i, vim.log.levels.WARN)
+				vim.notify("There is no buffer on position " .. i, vim.log.levels.WARN)
 			end
-		end, { desc = "Abrir buffer " .. i .. " do cache" })
+		end, { desc = "Open buffer " .. i .. " from cache" })
 	end
 
 end
