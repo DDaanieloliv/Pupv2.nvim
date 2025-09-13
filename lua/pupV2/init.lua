@@ -508,16 +508,7 @@ function M.show_buffers_in_float()
     row = row,
     col = col,
     style = 'minimal',
-    border = {
-      { "╭", "FloatBorder" },
-      { "─", "FloatBorder" },
-      { "╮", "FloatBorder" },
-      { "│", "FloatBorder" },
-      { "╯", "FloatBorder" },
-      { "─", "FloatBorder" },
-      { "╰", "FloatBorder" },
-      { "│", "FloatBorder" },
-    },
+    border = 'rounded',
     title = {
       { "", "PromptSymbol" },
       { " " .. table.concat(query) .. "│ ", "InputText" }
@@ -531,13 +522,13 @@ function M.show_buffers_in_float()
 
   -- Configurar o buffer
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
-  vim.api.nvim_buf_set_option(buf, 'filetype', 'bufferlist')
+  vim.api.nvim_set_option_value('modifiable', false, { buf = buf } )
+  vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
 
   -- Configurações de highlight
-  vim.api.nvim_win_set_option(win, 'cursorline', true)
-  vim.api.nvim_win_set_option(win, 'cursorlineopt', 'both')
-  vim.api.nvim_win_set_option(win, 'winhighlight', 'CursorLine:FloatCursorLine')
+  vim.api.nvim_set_option_value('cursorline', true, { win = win })
+  vim.api.nvim_set_option_value('cursorlineopt', 'both', { win = win })
+  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
 
   vim.cmd([[
 		highlight FloatCursorLine guibg=#312f2d
@@ -571,7 +562,7 @@ function M.show_buffers_in_float()
 
   -- update_display function with truncate
   local function update_display()
-    vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+    vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
 
     -- Update title
     vim.api.nvim_win_set_config(win, {
@@ -609,12 +600,13 @@ function M.show_buffers_in_float()
       -- Uses truncate_path to ensure the file name is visible
       local truncated_path = truncate_path(buf_item.path, 69)
 
-      local line = string.format("%s%d: %s", status, buf_item.number, truncated_path)
+      -- local line = string.format("%d %s%s", buf_item.number, status, truncated_path)
+      local line = string.format("%s %-2d %s", status, buf_item.number, truncated_path)
       table.insert(lines, line)
     end
 
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+    vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
 
     -- Apply highlight to matches
     if #query > 0 then
@@ -629,13 +621,13 @@ function M.show_buffers_in_float()
           local match_start, match_end = line_lower:find(search_lower, start_pos, true)
           if not match_start then break end
 
-          vim.api.nvim_buf_add_highlight(
+          vim.hl.range(
             buf,
             ns_id,
             'PickBufferMatch',
-            i - 1,
-            match_start - 1,
-            match_end
+            {i - 1, match_start - 1},
+            {i - 1, match_end},
+            {inclusive = false}
           )
           start_pos = match_end + 1
         end
@@ -651,7 +643,7 @@ function M.show_buffers_in_float()
 
   -- Main Loop
   while true do
-    local ok, char_str = pcall(vim.fn.getcharstr) -- ← MUDOU PARA getcharstr()
+    local ok, char_str = pcall(vim.fn.getcharstr) -- ← Switch to getcharstr()
     if not ok then break end
 
     -- Detecta Alt+Number (special keys)
@@ -760,7 +752,7 @@ end
 function M._select_current_buffer()
   local line = vim.api.nvim_get_current_line()
   -- Extracts the buffer number from the line (new shape: " 1: path")
-  local buffer_number = line:match('%s*[%*_]%s*(%d+):')
+  local buffer_number = line:match('%s*[%*_]%s*(%d+)')
 
   if buffer_number then
     M._select_buffer(tonumber(buffer_number))
@@ -812,7 +804,7 @@ end
 function M.setup_keymaps()
   local keymaps = M.config.keymaps
 
-  vim.keymap.set('n', '<leader>bf', M.show_buffers_in_float, { desc = 'Show buffer in a float window' })
+  -- vim.keymap.set('n', '<leader>bf', M.show_buffers_in_float, { desc = 'Show buffer in a float window' })
 
   vim.keymap.set("n", keymaps.list_buffers, M.list_buffers, { desc = "List buffers (with cache)" })
   vim.keymap.set("n", keymaps.move_backward, move_buffer_backward, { desc = "Move buffer backward in list" })
