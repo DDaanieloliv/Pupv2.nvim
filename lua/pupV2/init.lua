@@ -782,7 +782,7 @@ function M.list_buffers()
   vim.ui.select(buffers, {
     prompt = "Buffers:",
     format_item = function(item)
-      return string.format("[%d] %s   %s", item.number, item.name, item.path)
+      return string.format("🖹 %-3d %-15s %s", item.number, item.name, item.path)
     end,
   }, function(choice)
     if choice then
