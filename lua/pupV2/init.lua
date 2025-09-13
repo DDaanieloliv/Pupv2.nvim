@@ -86,6 +86,23 @@ local function close_telescope_windows()
   end
 end
 
+
+
+local function save_cache(cache_data)
+    if not cache_file or cache_file == "" then
+        vim.notify("Cache file path not set!", vim.log.levels.ERROR)
+        return
+    end
+
+    local file = io.open(cache_file, "w")
+    if file then
+        file:write("return " .. vim.inspect(cache_data))
+        file:close()
+    else
+        vim.notify("Failed to open cache file: " .. cache_file, vim.log.levels.ERROR)
+    end
+end
+
 -- Cache system
 local function setup_cache()
   if vim.fn.isdirectory(M.config.cache_dir) == 0 then
@@ -103,13 +120,6 @@ local function load_cache()
   return ok and cache_data or {}
 end
 
-local function save_cache(cache_data)
-  local file = io.open(cache_file, "w")
-  if file then
-    file:write("return " .. vim.inspect(cache_data))
-    file:close()
-  end
-end
 
 local function add_buffer_to_cache(buf)
   local buf_name = vim.api.nvim_buf_get_name(buf)
@@ -290,8 +300,8 @@ local function clear_current_path_buffers()
   end
 
   save_cache(new_cache)
-  pcall(vim.cmd, "silent! call clearmatches()")
-  pcall(vim.cmd, "silent! call histdel('/', -1)")
+  pcall(vim.api.nvim_command, "silent! call clearmatches()")
+  pcall(vim.api.nvim_command, "silent! call histdel('/', -1)")
   vim.notify("Current path buffers have been saved and closed", vim.log.levels.INFO)
 end
 
@@ -358,7 +368,8 @@ local function move_buffer_backward()
 end
 
 
-function M.buffer_completion(arg_lead, cmd_line, cursor_pos)
+-- function M.buffer_completion(arg_lead, cmd_line, cursor_pos)
+function M.buffer_completion(arg_lead, _, _)
   local completions = {}
   local buffers = get_buffers_with_numbers()
 
@@ -478,16 +489,17 @@ end
 function M.show_buffers_in_float()
   local buffers = get_buffers_with_numbers()
 
-  -- Content of the floating window
-  local lines = {}
-  for _, buf in ipairs(buffers) do
-    local status = buf.is_open and "·" or "_"
-    -- Uses the truncate_path function to ensure the file name is visible
-    local truncated_path = truncate_path(buf.path, 65) -- 65 characters to max width
 
-    local line = string.format("  %s%d: %s", status, buf.number, truncated_path)
-    table.insert(lines, line)
-  end
+  -- Content of the floating window
+  -- local lines = {}
+  -- for _, buf in ipairs(buffers) do
+  --   local status = buf.is_open and "·" or "_"
+  --   -- Uses the truncate_path function to ensure the file name is visible
+  --   local truncated_path = truncate_path(buf.path, 65) -- 65 characters to max width
+  --
+  --   local line = string.format("  %s%d: %s", status, buf.number, truncated_path)
+  --   table.insert(lines, line)
+  -- end
 
   -- Floating Window Settings - BOTTOM LEFT CORNER
   local width = 74
@@ -521,7 +533,6 @@ function M.show_buffers_in_float()
   })
 
   -- Configurar o buffer
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.api.nvim_set_option_value('modifiable', false, { buf = buf } )
   vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
 
@@ -594,7 +605,8 @@ function M.show_buffers_in_float()
 
     -- Update the content with truncate paths
     local lines = {}
-    for i, buf_item in ipairs(filtered_buffers) do
+    -- for i, buf_item in ipairs(filtered_buffers) do
+    for _, buf_item in ipairs(filtered_buffers) do
       -- local status = buf_item.is_open and " " or "🖹"
       local status = buf_item.is_open and "🖹" or "🖹"
       -- Uses truncate_path to ensure the file name is visible
@@ -605,6 +617,10 @@ function M.show_buffers_in_float()
       table.insert(lines, line)
     end
 
+
+    -- Configurar o buffer
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
     vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
 
@@ -612,7 +628,8 @@ function M.show_buffers_in_float()
     if #query > 0 then
       local search_lower = table.concat(query):lower()
 
-      for i, buf_item in ipairs(filtered_buffers) do
+      -- for i, buf_item in ipairs(filtered_buffers) do
+      for i, _ in ipairs(filtered_buffers) do
         local line_text = lines[i]
         local line_lower = line_text:lower()
 
