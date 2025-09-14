@@ -25,6 +25,15 @@ local default_config = {
   },
   ignore_patterns = {
     "neo%-tree", "NvimTree", "packer", "fugitive", "term://", "^no name"
+  },
+  style = {
+    border = 'rounded',
+    border_color =  '#B9B8B4',
+    background = '#181715',
+    cursor_line = '#312f2d',
+    match_highlight = '#9484D2',
+    title_color = '#B9B8B4',
+    prompt_color = '#B9B8B4'
   }
 }
 
@@ -489,20 +498,10 @@ end
 function M.show_buffers_in_float()
   local buffers = get_buffers_with_numbers()
 
-
-  -- Content of the floating window
-  -- local lines = {}
-  -- for _, buf in ipairs(buffers) do
-  --   local status = buf.is_open and "·" or "_"
-  --   -- Uses the truncate_path function to ensure the file name is visible
-  --   local truncated_path = truncate_path(buf.path, 65) -- 65 characters to max width
-  --
-  --   local line = string.format("  %s%d: %s", status, buf.number, truncated_path)
-  --   table.insert(lines, line)
-  -- end
+  local style = M.config.style
 
   -- Floating Window Settings - BOTTOM LEFT CORNER
-  local width = 74
+  local width = 75
   local height = 25
   -- local height = math.min(25, #lines + 2)  -- dinamic height based on buffers number.
   local row = vim.o.lines - height - 1
@@ -520,7 +519,8 @@ function M.show_buffers_in_float()
     row = row,
     col = col,
     style = 'minimal',
-    border = 'rounded',
+    -- border = 'rounded',
+    border = style.border,
     title = {
       { "", "PromptSymbol" },
       { " " .. table.concat(query) .. "│ ", "InputText" }
@@ -541,30 +541,23 @@ function M.show_buffers_in_float()
   vim.api.nvim_set_option_value('cursorlineopt', 'both', { win = win })
   vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
 
-  vim.cmd([[
-		highlight FloatCursorLine guibg=#312f2d
-		highlight NormalFloat  guibg=#181715
-		highlight FloatBorder  guibg=#181715
 
-		" highlight PromptSymbol guibg=#06070d
-		" highlight InputText    guibg=#06070d
+  vim.cmd(string.format([[
+    highlight FloatBorder guifg=%s guibg=%s
+    highlight NormalFloat guibg=%s
+    highlight FloatCursorLine guibg=%s
+    highlight PickBufferMatch guifg=%s gui=bold
+    highlight FloatTitle guifg=%s
+    highlight FloatFooter guifg=%s
+  ]],
+    style.border_color, style.background,
+    style.background,
+    style.cursor_line,
+    style.match_highlight,
+    style.title_color,
+    style.title_color
+  ))
 
-		highlight FloatFooter  guibg=#181715
-		highlight PromptSymbol guibg=#181715
-		highlight InputText    guibg=#181715
-
-
-		highlight PromptSymbol guifg=#B9B8B4
-		highlight FloatBorder  guifg=#B9B8B4
-		highlight FloatTitle   guifg=#B9B8B4 guibg=black
-		highlight FloatFooter  guifg=#B9B8B4
-		" highlight InputText    guifg=#A9B7C6
-		highlight InputText    guifg=none " gui=bold
-
-		" highlight PickBufferMatch guifg=#7A729A gui=bold
-		highlight PickBufferMatch guifg=#9484D2 gui=bold
-		highlight PickBufferMatchCurrent guifg=#FF6B6B gui=bold
-	]])
 
   -- Mappings
   vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>',
@@ -613,7 +606,7 @@ function M.show_buffers_in_float()
       local truncated_path = truncate_path(buf_item.path, 69)
 
       -- local line = string.format("%d %s%s", buf_item.number, status, truncated_path)
-      local line = string.format("%s %-2d %s", status, buf_item.number, truncated_path)
+      local line = string.format("%s %-3d %s", status, buf_item.number, truncated_path)
       table.insert(lines, line)
     end
 
