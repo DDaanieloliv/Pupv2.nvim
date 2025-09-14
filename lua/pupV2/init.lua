@@ -28,12 +28,16 @@ local default_config = {
   },
   style = {
     border = 'rounded',
-    border_color =  '#B9B8B4',
-    background = '#181715',
-    cursor_line = '#312f2d',
-    match_highlight = '#9484D2',
-    title_color = '#B9B8B4',
-    prompt_color = '#B9B8B4'
+    background       = nil,
+    cursor_line      = '#201e1b',
+    border_color     = nil,
+    title_color      = nil,
+    color_symbol     = nil,
+    match_highlight  = '#9484D2',
+    input_background = nil,
+    input_text       = nil,
+    prompt_symbol    = '',
+    input_cursor     = '│ ',
   }
 }
 
@@ -519,11 +523,10 @@ function M.show_buffers_in_float()
     row = row,
     col = col,
     style = 'minimal',
-    -- border = 'rounded',
     border = style.border,
     title = {
-      { "", "PromptSymbol" },
-      { " " .. table.concat(query) .. "│ ", "InputText" }
+      { style.prompt_symbol, "PromptSymbol" },
+      { " " .. table.concat(query) .. style.input_cursor, "InputText" }
     },
     title_pos = "left",
     footer = {
@@ -537,26 +540,40 @@ function M.show_buffers_in_float()
   vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
 
   -- Configurações de highlight
+  vim.api.nvim_set_option_value('number', true, { win = win })
+  vim.api.nvim_set_option_value('numberwidth', 1, { win = win })
   vim.api.nvim_set_option_value('cursorline', true, { win = win })
-  vim.api.nvim_set_option_value('cursorlineopt', 'both', { win = win })
+  vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
   vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
 
 
-  vim.cmd(string.format([[
-    highlight FloatBorder guifg=%s guibg=%s
-    highlight NormalFloat guibg=%s
-    highlight FloatCursorLine guibg=%s
-    highlight PickBufferMatch guifg=%s gui=bold
-    highlight FloatTitle guifg=%s
-    highlight FloatFooter guifg=%s
-  ]],
-    style.border_color, style.background,
-    style.background,
-    style.cursor_line,
-    style.match_highlight,
-    style.title_color,
-    style.title_color
-  ))
+  if style.border_color then
+      vim.cmd(string.format("highlight FloatBorder guifg=%s", style.border_color))
+  end
+  if style.color_symbol then
+      vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.color_symbol))
+  end
+  if style.cursor_line then
+      vim.cmd(string.format("highlight FloatCursorLine guibg=%s", style.cursor_line))
+  end
+  if style.match_highlight then
+      vim.cmd(string.format("highlight PickBufferMatch guifg=%s gui=bold", style.match_highlight))
+  end
+  if style.input_text then
+      vim.cmd(string.format("highlight InputText guifg=%s", style.input_text))
+  end
+  if style.title_color then
+      vim.cmd(string.format("highlight FloatTitle guifg=%s", style.title_color))
+      vim.cmd(string.format("highlight FloatFooter guifg=%s", style.title_color))
+  end
+  if style.input_background then
+      vim.cmd(string.format("highlight InputText guibg=%s", style.input_background))
+  end
+  if style.background then
+      vim.cmd(string.format("highlight NormalFloat guibg=%s", style.background))
+      vim.cmd(string.format("highlight FloatBorder guibg=%s", style.background))
+      vim.cmd(string.format("highlight PromptSymbol guibg=%s", style.background))
+  end
 
 
   -- Mappings
@@ -571,8 +588,8 @@ function M.show_buffers_in_float()
     -- Update title
     vim.api.nvim_win_set_config(win, {
       title = {
-        { "", "PromptSymbol" },
-        { " " .. table.concat(query) .. "│ ", "InputText" }
+        { style.prompt_symbol, "PromptSymbol" },
+        { " " .. table.concat(query) .. style.input_cursor, "InputText" }
       },
       footer = { { " BUFFERS " } }
     })
@@ -606,7 +623,8 @@ function M.show_buffers_in_float()
       local truncated_path = truncate_path(buf_item.path, 69)
 
       -- local line = string.format("%d %s%s", buf_item.number, status, truncated_path)
-      local line = string.format("%s %-3d %s", status, buf_item.number, truncated_path)
+      -- local line = string.format("%s %-3d %s", status, buf_item.number, truncated_path)
+      local line = string.format("%s %s", status, truncated_path)
       table.insert(lines, line)
     end
 
