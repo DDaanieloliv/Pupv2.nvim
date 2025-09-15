@@ -39,9 +39,22 @@ use {
 
 ```lua
 {
-  'DDaanieloliv/Pupv2.nvim',
-  config = true,
+  "DDaanieloliv/Pupv2.nvim",
+  config = function()
+    require("pupV2").setup({})
+  end
 }
+```
+**or**
+```lua
+  {
+    "DDaanieloliv/Pupv2.nvim",
+    opts = {
+      style = {
+        cursor_line = '#1c1a18',
+      }
+    }
+  }
 ```
 
 ### How to start
@@ -84,7 +97,7 @@ require('pupV2').setup({
   keymaps = {
     list_buffers = "<leader>ls",
     move_backward = "<leader>[",
-    move_forward = "<leader>]", 
+    move_forward = "<leader>]",
     buffer_picker = "ç",
     close_buffer = "<leader>q",
     clear_path = "<leader>x",
@@ -93,6 +106,19 @@ require('pupV2').setup({
   },
   ignore_patterns = {
     "neo%-tree", "NvimTree", "packer", "fugitive", "term://", "^no name"
+  },
+  style = {
+    border = 'rounded',
+    background       = nil,
+    cursor_line      = nil,
+    border_color     = nil,
+    title_color      = nil,
+    color_symbol     = nil,
+    match_highlight  = '#9484D2',
+    input_background = nil,
+    input_text       = nil,
+    prompt_symbol    = '',
+    input_cursor     = '│ ',
   }
 })
 ```
@@ -104,20 +130,20 @@ require('pupV2').setup({
 - Navigation
 
 ```Key	Action
-<leader>bf	Open floating buffer picker
+<leader>bf	    Open floating buffer picker
 <A-1> to <A-9>	Open buffer 1-9 directly
-ç	Open buffer command palette
-<leader>ls	List all cached buffers
+ç	              Open buffer command palette
+<leader>ls	    List all cached buffers
 ```
 
 - Buffer Management
 
 ```Key	Action
-<leader>q	Close current buffer (smart)
-<leader>[	Move buffer backward in list
-<leader>]	Move buffer forward in list
-<leader>x	Clear current path buffers
-<leader>r	Remove last buffer from cache
+<leader>q	  Close current buffer (smart)
+<leader>[	  Move buffer backward in list
+<leader>]	  Move buffer forward in list
+<leader>x	  Clear current path buffers
+<leader>r	  Remove last buffer from cache
 <leader>cc	Clear entire buffer cache
 ```
 
@@ -126,24 +152,14 @@ require('pupV2').setup({
 ```Key	Action
 J/<C-j>	Move selection down
 K/<C-k>	Move selection up
-1-9	Select buffer by number
-TAB	Cycle through buffers
+1-9	    Select buffer by number
+TAB	    Cycle through buffers
 Space/Enter/O/<C-l>	Confirm selection
-ESC	Close without selection
+ESC	Close without   selection
 Type any letter	Real-time filtering
 ```
 
-- Customization
-UI Customization
-The floating window uses these highlight groups:
-vim
-
-" Customize the appearance:
-highlight FloatCursorLine guibg=#312f2d
-highlight PickBufferMatch guifg=#9484D2 gui=bold
-highlight PickBufferMatchCurrent guifg=#FF6B6B gui=bold
-
-Path Truncation
+- Path Truncation
 
 The plugin truncates long paths:
 
