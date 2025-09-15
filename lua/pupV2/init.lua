@@ -469,11 +469,17 @@ local function truncate_path(path, max_width)
   -- Replaces home directory with ~
   local home_dir = vim.fn.expand("~")
   if dir_path:sub(1, #home_dir) == home_dir then
-    dir_path = "~" .. dir_path:sub(#home_dir + 1)
+    -- dir_path = "~" .. dir_path:sub(#home_dir + 1)
+    dir_path = dir_path:sub(#home_dir + 2)
+  end
+
+  if dir_path == "" or dir_path == "." then
+    return filename
   end
 
   -- If the full path fits, return normal
   local full_path = dir_path .. "/" .. filename
+
   if #full_path <= max_width then
     return full_path
   end
@@ -496,7 +502,6 @@ local function truncate_path(path, max_width)
 
   return dir_path .. "/" .. filename
 end
-
 
 
 function M.show_buffers_in_float()
@@ -624,7 +629,7 @@ function M.show_buffers_in_float()
 
       -- local line = string.format("%d %s%s", buf_item.number, status, truncated_path)
       -- local line = string.format("%s %-3d %s", status, buf_item.number, truncated_path)
-      local line = string.format("%s %s", status, truncated_path)
+      local line = string.format("%s%s", status, truncated_path)
       table.insert(lines, line)
     end
 
