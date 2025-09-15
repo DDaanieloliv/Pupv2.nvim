@@ -16,7 +16,7 @@ This plugin provides buffer management with:
 
 COMMANDS						*pupV2-commands*
 
-:B [number|name]					*:B*
+:Mag [number|name]					*:Mag*
 		List buffers or open specific buffer by number/name
     Show up a mini.pick's like UI with buffers's current working directory
 
@@ -34,20 +34,38 @@ MAPPINGS						*pupV2-mappings*
 CUSTOMIZATION					*pupV2-customization*
 
 To customize keymaps: >
-		config = function()
-			require("pupV2").setup({
-				keymaps = {
-					list_buffers = "<leader>ls",
-					buffer_picker = "ç",
-					close_buffer = "<leader>q",
-					clear_path = "<leader>x",
-					remove_last = "<leader>r",
-					clear_cache = "<leader>cc",
-					move_backward = "<leader>[",
-					move_forward = "<leader>]"
-				}
-			})
-		end
+config = function()
+  require("pupV2").setup({
+      enabled = true,
+      cache_dir = vim.fn.stdpath("data") .. "/buffer_cache",
+      keymaps = {
+      list_buffers = "<leader>ls",
+      move_backward = "<leader>[",
+      move_forward = "<leader>]",
+      buffer_picker = "ç",
+      close_buffer = "<leader>q",
+      clear_path = "<leader>x",
+      remove_last = "<leader>r",
+      clear_cache = "<leader>cc"
+      },
+      ignore_patterns = {
+      "neo%-tree", "NvimTree", "packer", "fugitive", "term://", "^no name"
+      },
+      style = {
+      border = 'rounded',
+      background       = nil,
+      cursor_line      = nil,
+      border_color     = nil,
+      title_color      = nil,
+      color_symbol     = nil,
+      match_highlight  = '#9484D2',
+      input_background = nil,
+      input_text       = nil,
+      prompt_symbol    = '',
+      input_cursor     = '│ ',
+      }
+  })
+end
 <
 
 SETTINGS						*pupV2-settings*
