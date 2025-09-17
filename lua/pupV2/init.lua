@@ -554,6 +554,7 @@ function M.show_buffers_in_float()
 
   if style.border_color then
       vim.cmd(string.format("highlight FloatBorder guifg=%s", style.border_color))
+      vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.border_color))
   end
   if style.color_symbol then
       vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.color_symbol))
