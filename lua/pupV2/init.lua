@@ -1169,15 +1169,17 @@ M.stack = {}
 --- @param buf integer  Buffer id (ID)
 ---
 function M.push_to_stack(buf)
-  if M.stack[#M.stack] == vim.api.nvim_get_current_buf()   then
-    return
-  end
+  if M.should_save_buffer(buf) then
+    if M.stack[#M.stack] == vim.api.nvim_get_current_buf()   then
+      return
+    end
 
-  table.insert(M.stack, buf)
-  if #M.stack > 2 then
-    -- vim.notify("Removeing buffer in position 1", vim.log.levels.WARN)
-    table.remove(M.stack, 1)
-    return
+    table.insert(M.stack, buf)
+    if #M.stack > 2 then
+      -- vim.notify("Removeing buffer in position 1", vim.log.levels.WARN)
+      table.remove(M.stack, 1)
+      return
+    end
   end
 end
 
