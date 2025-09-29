@@ -24,9 +24,9 @@ local default_config = {
     pick_previous = "<leader>la",
     clear_cache = "<leader>cc"
   },
-  ignore_patterns = {
-    "neo%-tree", "NvimTree", "packer", "fugitive", "term://", "^no name"
-  },
+	ignore_patterns = {
+    "TelescopePrompt", "TelescopeResults", "bufferlist",	"neo%-tree", "NvimTree", "packer", "fugitive", "term://", "^no name"
+	},
   style = {
     border = 'rounded',
     background       = nil,
