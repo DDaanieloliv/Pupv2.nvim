@@ -1298,6 +1298,7 @@ function M.setup_autocmds()
         cache_data[current_path] = new_list
         save_cache(cache_data)
       end
+      M.stack = {}
     end,
   })
 end
