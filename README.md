@@ -2,7 +2,7 @@
 
 A personal plugin that helps me switch between buffers in Neovim and handle them per working directory.
 
-<img width="1874" height="992" alt="image" src="https://github.com/user-attachments/assets/b9b195ed-01b2-499d-8b7a-7867393c5ff8" />
+<img width="1903" height="1033" alt="image" src="https://github.com/user-attachments/assets/0ca7a31b-34a7-407d-b68b-4159eab72f8c" />
 
 
 ## Features
@@ -12,6 +12,8 @@ A personal plugin that helps me switch between buffers in Neovim and handle them
 - Persistent cache: Your buffer history survives Neovim sessions
 
 - Automatic cleanup: Removes invalid buffers and maintains organization
+
+- Last Buffer Swap: Jump to the previous buffer visited
 
 ## Overview
 
@@ -102,11 +104,12 @@ require('pupV2').setup({
     close_buffer = "<leader>q",
     clear_path = "<leader>x",
     remove_last = "<leader>r",
+    pick_previous = "<leader>la",
     clear_cache = "<leader>cc"
   },
-  ignore_patterns = {
-    "neo%-tree", "NvimTree", "packer", "fugitive", "term://", "^no name"
-  },
+	ignore_patterns = {
+    "TelescopePrompt", "TelescopeResults", "bufferlist",	"neo%-tree", "NvimTree", "packer", "fugitive", "term://", "^no name"
+	},
   style = {
     border = 'rounded',
     background       = nil,
@@ -145,6 +148,7 @@ require('pupV2').setup({
 <leader>x	  Clear current path buffers
 <leader>r	  Remove last buffer from cache
 <leader>cc	Clear entire buffer cache
+<leader>la  Jump to previous buffer
 ```
 
 - Floating Window Controls
