@@ -39,6 +39,9 @@ local default_config = {
     input_text       = nil,
     prompt_symbol    = '',
     input_cursor     = '│ ',
+  },
+  opt_feature = {
+    buffers_trail = false
   }
 }
 
@@ -709,6 +712,7 @@ end
 
 
 
+M.buffers_history = nil
 
 --- Lounch a window tha shows all buffers related to the current_path
 ---
@@ -718,6 +722,12 @@ function M.show_buffers_in_float()
 
 	local query = {}
 	local selected_index = 1
+
+  if default_config.opt_feature.buffers_trail then
+    if M.buffers_history ~= nil then
+      buffers = M.buffers_history
+    end
+  end
 	local filtered_buffers = buffers
 
 
@@ -835,6 +845,13 @@ function M.show_buffers_in_float()
 					table.insert(filtered_buffers, buf_item)
 				end
 			end
+
+      if default_config.opt_feature.buffers_trail then
+        M.buffers_history = filtered_buffers
+      end
+
+    elseif M.buffers_history and M.buffers_history ~= nil then
+      filtered_buffers = M.buffers_history
 		else
 			filtered_buffers = buffers -- Show all buffers when no search term
 		end
@@ -1040,6 +1057,10 @@ function M.show_buffers_in_float()
 				table.remove(query)
 				selected_index = 1
 				update_display()
+      elseif #query == 0 and default_config.opt_feature.buffers_trail then
+        buffers = get_buffers_with_numbers()
+        M.buffers_history = buffers
+        update_display()
 			end
       -- Search characters i.e. that character typed only will be add to 'query'
       -- if the characters size was equas to 1 and if it was a character that is NOT a white space
