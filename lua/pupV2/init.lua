@@ -723,7 +723,7 @@ function M.show_buffers_in_float()
 	local query = {}
 	local selected_index = 1
 
-  if default_config.opt_feature.buffers_trail then
+  if M.config.opt_feature.buffers_trail then
     if M.buffers_history ~= nil then
       buffers = M.buffers_history
     end
@@ -846,7 +846,7 @@ function M.show_buffers_in_float()
 				end
 			end
 
-      if default_config.opt_feature.buffers_trail then
+      if M.config.opt_feature.buffers_trail then
         M.buffers_history = filtered_buffers
       end
 
@@ -1057,7 +1057,7 @@ function M.show_buffers_in_float()
 				table.remove(query)
 				selected_index = 1
 				update_display()
-      elseif #query == 0 and default_config.opt_feature.buffers_trail then
+      elseif #query == 0 and M.config.opt_feature.buffers_trail then
         buffers = get_buffers_with_numbers()
         M.buffers_history = buffers
         update_display()
@@ -1334,7 +1334,14 @@ end
 
 -- Main Setup
 function M.setup(user_config)
-  M.config = vim.tbl_deep_extend("force", default_config, user_config or {})
+  local merged_config = vim.tbl_deep_extend("force", default_config, user_config or {})
+
+  if user_config and user_config.opt_feature then
+    merged_config.opt_feature = vim.tbl_deep_extend("force", default_config.opt_feature, user_config.opt_feature)
+  end
+  M.config = merged_config
+
+  -- M.config = vim.tbl_deep_extend("force", default_config, user_config or {})
 
   setup_cache()
   M.setup_keymaps()
