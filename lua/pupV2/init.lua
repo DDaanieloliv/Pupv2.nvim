@@ -846,12 +846,6 @@ function M.show_buffers_in_float()
 				end
 			end
 
-      if M.config.opt_feature.buffers_trail then
-        M.buffers_history = filtered_buffers
-      end
-
-    elseif M.buffers_history and M.buffers_history ~= nil then
-      filtered_buffers = M.buffers_history
 		else
 			filtered_buffers = buffers -- Show all buffers when no search term
 		end
@@ -995,6 +989,11 @@ function M.show_buffers_in_float()
 			vim.schedule(function()
 				if #filtered_buffers > 0 then
           -- M.set_last_buffer(vim.api.nvim_get_current_buf())
+
+          if M.config.opt_feature.buffers_trail then
+            M.buffers_history = filtered_buffers
+          end
+
 					M._select_buffer(filtered_buffers[selected_index].number)
 				end
 			end)
@@ -1003,6 +1002,11 @@ function M.show_buffers_in_float()
 			--   vim.schedule(function()
 			--     if #filtered_buffers > 0 then
       --       -- M.set_last_buffer(vim.api.nvim_get_current_buf())
+      --
+      --      if M.config.opt_feature.buffers_trail then
+      --        M.buffers_history = filtered_buffers
+      --      end
+      --
 			--       M._select_buffer(filtered_buffers[selected_index].number)
 			--     end
 			--   end)
@@ -1011,6 +1015,11 @@ function M.show_buffers_in_float()
 			vim.schedule(function()
 				if #filtered_buffers > 0 then
           -- M.set_last_buffer(vim.api.nvim_get_current_buf())
+
+          if M.config.opt_feature.buffers_trail then
+            M.buffers_history = filtered_buffers
+          end
+
 					M._select_buffer(filtered_buffers[selected_index].number)
 				end
 			end)
@@ -1043,11 +1052,21 @@ function M.show_buffers_in_float()
 			--     update_display()
 			--   end
 		elseif char_str == '\27' then -- Escape
+
+      if M.config.opt_feature.buffers_trail then
+        M.buffers_history = filtered_buffers
+      end
+
 			break
 		elseif char_str == '\13' then -- Enter
 			vim.schedule(function()
 				if #filtered_buffers > 0 then
           -- M.set_last_buffer(vim.api.nvim_get_current_buf())
+
+          if M.config.opt_feature.buffers_trail then
+            M.buffers_history = filtered_buffers
+          end
+
 					M._select_buffer(filtered_buffers[selected_index].number)
 				end
 			end)
