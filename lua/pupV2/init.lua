@@ -975,6 +975,11 @@ function M.show_buffers_in_float()
 				vim.schedule(function()
 					if ctrl_number <= #filtered_buffers then
             -- M.set_last_buffer(vim.api.nvim_get_current_buf())
+
+            if M.config.opt_feature.buffers_trail then
+              M.buffers_history = filtered_buffers
+            end
+
 						M._select_buffer(filtered_buffers[ctrl_number].number)
 					end
 				end)
