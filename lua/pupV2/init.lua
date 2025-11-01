@@ -896,6 +896,9 @@ function M.show_buffers_in_float()
         --- when we open the plugin window each time we confirm or escape from that window.
         ---
         --- If you are the owner of that github account 'https://github.com/DDaanieloliv' you know what I mean !!!
+
+
+        --- In future releases we will fix the behavior about sub query's !!!
       end
 
       --- If we update de M.current_query with some search_term in that conditional block
