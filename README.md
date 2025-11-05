@@ -141,6 +141,7 @@ require('pupV2').setup({
 
 - Buffer Management
 
+
 ```Key	Action
 <leader>q	  Close current buffer (smart)
 <leader>[	  Move buffer backward in list
