@@ -1050,12 +1050,13 @@ function M.show_buffers_in_float()
 					if ctrl_number <= #filtered_buffers then
             -- M.set_last_buffer(vim.api.nvim_get_current_buf())
 
-            -- if M.config.opt_feature.buffers_trail then
-            --   M.buffers_history = filtered_buffers
-            -- end
+            if M.config.opt_feature.buffers_trail then
+              -- M.buffers_history = filtered_buffers
 
-            M.current_query = search_term
-            M.flag_confirmation = true
+              M.current_query = search_term
+              M.flag_confirmation = true
+            end
+
 						M._select_buffer(filtered_buffers[ctrl_number].number)
 					end
 				end)
@@ -1071,12 +1072,15 @@ function M.show_buffers_in_float()
 				if #filtered_buffers > 0 then
           -- M.set_last_buffer(vim.api.nvim_get_current_buf())
 
-          -- if M.config.opt_feature.buffers_trail then
-          --   M.buffers_history = filtered_buffers
-          -- end
+          if M.config.opt_feature.buffers_trail then
+            -- M.buffers_history = filtered_buffers
 
-          M.current_query = search_term
-          M.flag_confirmation = true
+            M.current_query = search_term
+            M.flag_confirmation = true
+          end
+
+          -- M.current_query = search_term
+          -- M.flag_confirmation = true
 					M._select_buffer(filtered_buffers[selected_index].number)
 				end
 			end)
@@ -1088,6 +1092,9 @@ function M.show_buffers_in_float()
       --
       --      if M.config.opt_feature.buffers_trail then
       --        M.buffers_history = filtered_buffers
+      --
+      --        M.current_query = search_term
+      --        M.flag_confirmation = true
       --      end
       --
       --       M.current_query = search_term
@@ -1101,12 +1108,15 @@ function M.show_buffers_in_float()
 				if #filtered_buffers > 0 then
           -- M.set_last_buffer(vim.api.nvim_get_current_buf())
 
-          -- if M.config.opt_feature.buffers_trail then
-          --   M.buffers_history = filtered_buffers
-          -- end
+          if M.config.opt_feature.buffers_trail then
+            -- M.buffers_history = filtered_buffers
 
-          M.current_query = search_term
-          M.flag_confirmation = true
+            M.current_query = search_term
+            M.flag_confirmation = true
+          end
+
+          -- M.current_query = search_term
+          -- M.flag_confirmation = true
 					M._select_buffer(filtered_buffers[selected_index].number)
 				end
 			end)
@@ -1140,12 +1150,15 @@ function M.show_buffers_in_float()
 			--   end
 		elseif char_str == '\27' then -- Escape
 
-      -- if M.config.opt_feature.buffers_trail then
-      --   M.buffers_history = filtered_buffers
-      -- end
+      if M.config.opt_feature.buffers_trail then
+        -- M.buffers_history = filtered_buffers
 
-      M.current_query = search_term
-      M.flag_confirmation = true
+        M.current_query = search_term
+        M.flag_confirmation = true
+      end
+
+      -- M.current_query = search_term
+      -- M.flag_confirmation = true
 
 			break
 		elseif char_str == '\13' then -- Enter
@@ -1153,12 +1166,15 @@ function M.show_buffers_in_float()
 				if #filtered_buffers > 0 then
           -- M.set_last_buffer(vim.api.nvim_get_current_buf())
 
-          -- if M.config.opt_feature.buffers_trail then
-          --   M.buffers_history = filtered_buffers
-          -- end
+          if M.config.opt_feature.buffers_trail then
+            -- M.buffers_history = filtered_buffers
 
-          M.current_query = search_term
-          M.flag_confirmation = true
+            M.current_query = search_term
+            M.flag_confirmation = true
+          end
+
+          -- M.current_query = search_term
+          -- M.flag_confirmation = true
 					M._select_buffer(filtered_buffers[selected_index].number)
 
 				end
