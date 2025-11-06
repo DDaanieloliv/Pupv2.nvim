@@ -906,6 +906,13 @@ function M.show_buffers_in_float()
       --- In every confirmation or escape it will concider that query like the last.
       ---
       --- If you are the owner of this github account 'https://github.com/DDaanieloliv', you know what tha means
+      ---
+      ---
+      --- Current implementation takes all buffers in path and allows we filter that based in some query
+      --- and when we re-open the window we again apply that query (showing the lasts buffers that we got)
+      --- and when we again, under thoses fitered buffers we apply other query to filter it, we again are applyng
+      --- that new query( and only that new query ) under all buffers "again". What's wrong, we should implementing a
+      --- query stack under all buffers to avoid mistakes like now.
     else
 
       -- Based on the content on table query we filter the table 'buffers'
