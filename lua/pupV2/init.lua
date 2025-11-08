@@ -723,30 +723,34 @@ end
 
 
 
-
-
-
-M.buffers_history = nil
-
-M.current_query = nil
-
-M.flag_confirmation = nil
-
-function M.updated_buffers_by_query(search_term)
+function M.updated_buffers_by_query()
   local buffers = get_buffers_with_numbers()
-
   local filtered_buffers = buffers
-  filtered_buffers = {}
-  for _, buf_item in ipairs(buffers) do
-    if is_existing_file(buf_item.path) and
-      (buf_item.name:lower():find(search_term, 1, true) or
-      buf_item.path:lower():find(search_term, 1, true)) then
-      table.insert(filtered_buffers, buf_item)
+
+  local temp = {}
+
+  for _, term in ipairs(M.current_query) do
+
+    temp = {}
+    for _, buf_item in ipairs(filtered_buffers) do
+      if is_existing_file(buf_item.path) and
+        (buf_item.name:lower():find(term, 1, true) or
+        buf_item.path:lower():find(term, 1, true)) then
+        table.insert(temp, buf_item)
+      end
     end
+      filtered_buffers = temp
   end
 
   return filtered_buffers
 end
+
+
+M.buffers_history = nil
+
+M.current_query = {}
+
+M.flag_confirmation = nil
 
 
 --- Lounch a window tha shows all buffers related to the current_path
@@ -872,47 +876,29 @@ function M.show_buffers_in_float()
 
 
     if M.flag_confirmation and M.current_query ~= nil  then
-      if string.len(M.current_query) > 0 then
-        local buffers_to_search = M.updated_buffers_by_query(M.current_query)
-        search_term = M.current_query
+
+      if M.current_query ~= {} then
+        local buffers_to_search = M.updated_buffers_by_query()
 
         if #query > 0 then
           search_term = table.concat(query):lower()
         end
 
         if #query == 0 then
-          search_term = M.current_query
+          filtered_buffers = M.updated_buffers_by_query()
         end
 
-        filtered_buffers = {}
-        for _, buf_item in ipairs(buffers_to_search) do
-          if buf_item.name:lower():find(search_term, 1, true) or
-            buf_item.path:lower():find(search_term, 1, true) then
-            table.insert(filtered_buffers, buf_item)
+        if search_term ~= nil then
+          filtered_buffers = {}
+          for _, buf_item in ipairs(buffers_to_search) do
+            if buf_item.name:lower():find(search_term, 1, true) or
+              buf_item.path:lower():find(search_term, 1, true) then
+              table.insert(filtered_buffers, buf_item)
+            end
           end
         end
 
-        --- If you update M.current_query with some search_term it will get defaul behavior like
-        --- when we open the plugin window each time we confirm or escape from that window.
-        ---
-        --- If you are the owner of that github account 'https://github.com/DDaanieloliv' you know what I mean !!!
-
-
-        --- In future releases we will fix the behavior about sub query's !!!
       end
-
-      --- If we update de M.current_query with some search_term in that conditional block
-      --- it will work like when we start the window in first action.
-      --- In every confirmation or escape it will concider that query like the last.
-      ---
-      --- If you are the owner of this github account 'https://github.com/DDaanieloliv', you know what tha means
-      ---
-      ---
-      --- Current implementation takes all buffers in path and allows we filter that based in some query
-      --- and when we re-open the window we again apply that query (showing the lasts buffers that we got)
-      --- and when we again, under thoses fitered buffers we apply other query to filter it, we again are applyng
-      --- that new query( and only that new query ) under all buffers "again". What's wrong, we should implementing a
-      --- query stack under all buffers to avoid mistakes like now.
     else
 
       -- Based on the content on table query we filter the table 'buffers'
@@ -1055,12 +1041,9 @@ function M.show_buffers_in_float()
 				local ctrl_number = byte4 - 48 -- Convert ASCII to number (49->1, 50->2, etc.)
 				vim.schedule(function()
 					if ctrl_number <= #filtered_buffers then
-            -- M.set_last_buffer(vim.api.nvim_get_current_buf())
 
             if M.config.opt_feature.buffers_trail then
-              -- M.buffers_history = filtered_buffers
-
-              M.current_query = search_term
+              table.insert(M.current_query, search_term)
               M.flag_confirmation = true
             end
 
@@ -1077,17 +1060,12 @@ function M.show_buffers_in_float()
 		if char_str == '\12' then -- Ctrl+l (form feed)
 			vim.schedule(function()
 				if #filtered_buffers > 0 then
-          -- M.set_last_buffer(vim.api.nvim_get_current_buf())
 
           if M.config.opt_feature.buffers_trail then
-            -- M.buffers_history = filtered_buffers
-
-            M.current_query = search_term
+            table.insert(M.current_query, search_term)
             M.flag_confirmation = true
           end
 
-          -- M.current_query = search_term
-          -- M.flag_confirmation = true
 					M._select_buffer(filtered_buffers[selected_index].number)
 				end
 			end)
@@ -1100,12 +1078,11 @@ function M.show_buffers_in_float()
       --      if M.config.opt_feature.buffers_trail then
       --        M.buffers_history = filtered_buffers
       --
-      --        M.current_query = search_term
+      --        table.insert(M.current_query, search_term)
       --        M.flag_confirmation = true
       --      end
-      --
-      --       M.current_query = search_term
-      --       M.flag_confirmation = true
+      --      -- M.current_query = search_term
+      --      -- M.flag_confirmation = true
 			--       M._select_buffer(filtered_buffers[selected_index].number)
 			--     end
 			--   end)
@@ -1113,17 +1090,12 @@ function M.show_buffers_in_float()
 		elseif char_str == 'O' then
 			vim.schedule(function()
 				if #filtered_buffers > 0 then
-          -- M.set_last_buffer(vim.api.nvim_get_current_buf())
 
           if M.config.opt_feature.buffers_trail then
-            -- M.buffers_history = filtered_buffers
-
-            M.current_query = search_term
+            table.insert(M.current_query, search_term)
             M.flag_confirmation = true
           end
 
-          -- M.current_query = search_term
-          -- M.flag_confirmation = true
 					M._select_buffer(filtered_buffers[selected_index].number)
 				end
 			end)
@@ -1158,14 +1130,9 @@ function M.show_buffers_in_float()
 		elseif char_str == '\27' then -- Escape
 
       if M.config.opt_feature.buffers_trail then
-        -- M.buffers_history = filtered_buffers
-
-        M.current_query = search_term
+        table.insert(M.current_query, search_term)
         M.flag_confirmation = true
       end
-
-      -- M.current_query = search_term
-      -- M.flag_confirmation = true
 
 			break
 		elseif char_str == '\13' then -- Enter
@@ -1174,16 +1141,11 @@ function M.show_buffers_in_float()
           -- M.set_last_buffer(vim.api.nvim_get_current_buf())
 
           if M.config.opt_feature.buffers_trail then
-            -- M.buffers_history = filtered_buffers
-
-            M.current_query = search_term
+            table.insert(M.current_query, search_term)
             M.flag_confirmation = true
           end
 
-          -- M.current_query = search_term
-          -- M.flag_confirmation = true
 					M._select_buffer(filtered_buffers[selected_index].number)
-
 				end
 			end)
 			break
@@ -1193,9 +1155,8 @@ function M.show_buffers_in_float()
 				selected_index = 1
 				update_display()
       elseif #query == 0 and M.config.opt_feature.buffers_trail then
-        -- buffers = get_buffers_with_numbers()
-        -- M.buffers_history = buffers
 
+        M.current_query = {}
         M.flag_confirmation = false
         update_display()
 			end
