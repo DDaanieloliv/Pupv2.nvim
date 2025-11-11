@@ -85,9 +85,7 @@ A floating window displays your buffers in chronological order. Features include
   - `<Esc>` - Close window
 
 - **Direct Access**:
-  - `Alt+1` to `Alt+9` - Jump to buffer 1-9 directly
-  - Type numbers - Select buffer by index
- 
+  - `Alt+1` to `Alt+9` - Jump to buffer 1-9 directly 
   
 
 ## Default config
