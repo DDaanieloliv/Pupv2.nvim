@@ -15,6 +15,8 @@ A personal plugin that helps me switch between buffers in Neovim and handle them
 
 - Last Buffer Swap: Jump to the previous buffer visited
 
+- Buffer trail: Your last query is persisted in a stack
+
 ## Overview
 
 The main motivation is to provide an "environment" with buffers that I often use in my projects.
@@ -122,6 +124,9 @@ require('pupV2').setup({
     input_text       = nil,
     prompt_symbol    = '',
     input_cursor     = '│ ',
+  },
+  opt_feature = {
+    buffers_trail = false
   }
 })
 ```
