@@ -601,6 +601,17 @@ local function truncate_path(path, max_width)
 end
 
 
+
+local function count_line_buffers(buffers)
+	local num_lines = 0
+  if buffers then
+    for i, _ in ipairs(buffers) do
+      num_lines = i
+    end
+  end
+  return num_lines
+end
+
 ---------------------------------------------------------------------------------------------------------
 
 
@@ -610,6 +621,10 @@ end
 
 
 ------ M.table functios ---------------------------------------------------------------------------------
+
+
+M.current_query = {}
+M.flag_confirmation = nil
 
 
 --- Based on the argument received(String) we searches for that string which is a number and shoud
@@ -658,10 +673,8 @@ function M.buffer_command(args)
   if type(args) == "string" then
     args = { args = args }
   end
-
   args = args or {}
   local target_arg = args.args or ""
-
 
 	--[[
   If the received @param is == "", we call the function 'M.show_buffers_in_float'
@@ -726,7 +739,6 @@ end
 function M.updated_buffers_by_query()
   local buffers = get_buffers_with_numbers()
   local filtered_buffers = buffers
-
   local temp = {}
 
   for _, term in ipairs(M.current_query) do
@@ -741,47 +753,74 @@ function M.updated_buffers_by_query()
     end
       filtered_buffers = temp
   end
-
   return filtered_buffers
 end
 
 
-M.buffers_history = nil
 
-M.current_query = {}
+function M.config_window_buffer(win, buf)
+	vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+	vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
+	---
+	vim.api.nvim_set_option_value('number', true, { win = win })
+	vim.api.nvim_set_option_value('numberwidth', 1, { win = win })
+	vim.api.nvim_set_option_value('cursorline', true, { win = win })
+	vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
+	vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
+end
 
-M.flag_confirmation = nil
+function M.setting_config_style(style)
+	if style.input_text then
+		vim.cmd(string.format("highlight InputText guifg=%s", style.input_text))
+	end
+	if style.color_symbol then
+		vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.color_symbol))
+	end
+	if style.input_background then
+		vim.cmd(string.format("highlight InputText guibg=%s", style.input_background))
+	end
+	if style.cursor_line then
+		vim.cmd(string.format("highlight FloatCursorLine guibg=%s", style.cursor_line))
+	end
+	if style.match_highlight then
+		vim.cmd(string.format("highlight PickBufferMatch guifg=%s gui=bold", style.match_highlight))
+	end
+	if style.title_color then
+		vim.cmd(string.format("highlight FloatTitle guifg=%s", style.title_color))
+		vim.cmd(string.format("highlight FloatFooter guifg=%s", style.title_color))
+	end
+	if style.border_color then
+		vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.border_color))
+		vim.cmd(string.format("highlight FloatBorder guifg=%s", style.border_color))
+	end
+	if style.background then
+		vim.cmd(string.format("highlight NormalFloat guibg=%s", style.background))
+		vim.cmd(string.format("highlight FloatBorder guibg=%s", style.background))
+		vim.cmd(string.format("highlight PromptSymbol guibg=%s", style.background))
+	end
+end
 
 
+
+--- To disconnect the function M.show_buffers_in_float() we should share the
+--- states of varibles that they both use to maintain the data consistence
+---
 --- Lounch a window tha shows all buffers related to the current_path
 ---
 function M.show_buffers_in_float()
-	local buffers = get_buffers_with_numbers()
-	local style = M.config.style
-
-  local search_term
-	local query = {}
-	local selected_index = 1
-
-  if M.config.opt_feature.buffers_trail then
-    if M.buffers_history ~= nil then
-      buffers = M.buffers_history
-    end
-  end
-	local filtered_buffers = buffers
-
 
   ---- Setting window configs ------------------------------------------------------------
-	local num_lines = 0
-  if buffers then
-    for i, _ in ipairs(buffers) do
-      num_lines = i
-    end
-  end
+	local style = M.config.style
+	local query = {}
+	local buffers = get_buffers_with_numbers()
+  local search_term
+	local selected_index = 1
+	local filtered_buffers = buffers
+	local num_lines = count_line_buffers(buffers)
 
- 	-- Floating Window Settings - BOTTOM LEFT CORNER
-	local width = 75
+
 	-- local height = 20
+	local width = 75
 	local height = math.min(22, num_lines + 15) -- Dynamic height based on number of buffers
 	local row = vim.o.lines - height - 1        -- close to 40 lines
 	local col = 0
@@ -806,47 +845,9 @@ function M.show_buffers_in_float()
 		footer_pos = "left",
 	})
 
+  M.config_window_buffer(win, buf)
+  M.setting_config_style(style)
 
-	--- Configure the buffer option with some option that we could see in ':set all'
-	---
-	vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
-	vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
-	---
-	vim.api.nvim_set_option_value('number', true, { win = win })
-	vim.api.nvim_set_option_value('numberwidth', 1, { win = win })
-	vim.api.nvim_set_option_value('cursorline', true, { win = win })
-	vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
-	vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
-
-
-	if style.border_color then
-		vim.cmd(string.format("highlight FloatBorder guifg=%s", style.border_color))
-		vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.border_color))
-	end
-	if style.color_symbol then
-		vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.color_symbol))
-	end
-	if style.cursor_line then
-		vim.cmd(string.format("highlight FloatCursorLine guibg=%s", style.cursor_line))
-	end
-	if style.match_highlight then
-		vim.cmd(string.format("highlight PickBufferMatch guifg=%s gui=bold", style.match_highlight))
-	end
-	if style.input_text then
-		vim.cmd(string.format("highlight InputText guifg=%s", style.input_text))
-	end
-	if style.title_color then
-		vim.cmd(string.format("highlight FloatTitle guifg=%s", style.title_color))
-		vim.cmd(string.format("highlight FloatFooter guifg=%s", style.title_color))
-	end
-	if style.input_background then
-		vim.cmd(string.format("highlight InputText guibg=%s", style.input_background))
-	end
-	if style.background then
-		vim.cmd(string.format("highlight NormalFloat guibg=%s", style.background))
-		vim.cmd(string.format("highlight FloatBorder guibg=%s", style.background))
-		vim.cmd(string.format("highlight PromptSymbol guibg=%s", style.background))
-	end
   -----------------------------------------------------------------------------------------------------
 
 	-- Set a keymap that trigger the function ':lua require("pick-buffer")._select_current_buffer()<CR>'
@@ -883,7 +884,6 @@ function M.show_buffers_in_float()
         if #query > 0 then
           search_term = table.concat(query):lower()
         end
-
         if #query == 0 then
           filtered_buffers = M.updated_buffers_by_query()
         end
@@ -1330,8 +1330,6 @@ end
 function M.setup_keymaps()
   local keymaps = M.config.keymaps
 
-  -- vim.keymap.set('n', '<leader>bf', M.show_buffers_in_float, { desc = 'Show buffer in a float window' })
-
   vim.keymap.set("n", keymaps.pick_previous, M.pick_last, { desc = "Jump to the previous buffer" })
   vim.keymap.set("n", keymaps.list_buffers, M.list_buffers, { desc = "List buffers (with cache)" })
   vim.keymap.set("n", keymaps.move_backward, move_buffer_backward, { desc = "Move buffer backward in list" })
@@ -1350,8 +1348,6 @@ function M.setup_keymaps()
     { desc = "Clear buffers of the current path (except the current one)" })
   vim.keymap.set("n", keymaps.remove_last, remove_last_buffer_from_cache, { desc = "Remove last buffer from cache" })
   vim.keymap.set("n", keymaps.clear_cache, clear_cache, { desc = "Clear all buffer cache" })
-
-
 
 
   -- Version that allows closing information tab when existing.
@@ -1432,14 +1428,12 @@ end
 
 -- Main Setup
 function M.setup(user_config)
-  local merged_config = vim.tbl_deep_extend("force", default_config, user_config or {})
 
+  local merged_config = vim.tbl_deep_extend("force", default_config, user_config or {})
   if user_config and user_config.opt_feature then
     merged_config.opt_feature = vim.tbl_deep_extend("force", default_config.opt_feature, user_config.opt_feature)
   end
   M.config = merged_config
-
-  -- M.config = vim.tbl_deep_extend("force", default_config, user_config or {})
 
   setup_cache()
   M.setup_keymaps()
