@@ -140,7 +140,6 @@ require('pupV2').setup({
 ```Key	Action
 <leader>bf	    Open floating buffer picker
 <A-1> to <A-9>	Open buffer 1-9 directly
-ç	              Open buffer command palette
 <leader>ls	    List all cached buffers
 ```
 
