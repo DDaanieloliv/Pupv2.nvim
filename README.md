@@ -74,7 +74,8 @@ A floating window displays your buffers in chronological order. Features include
 - **Real-time Filtering**: Start typing to instantly filter buffers
 - **Keyboard Navigation**: Multiple keybinding options for different workflows
 
-  
+
+   
 ### Usage cycle
 
 - **Basic Navigation**:
@@ -89,6 +90,7 @@ A floating window displays your buffers in chronological order. Features include
   
 
 ## Default config
+
 
 - Default configuration (customize as needed):
 
