@@ -266,22 +266,37 @@ local function get_buffers_with_numbers()
 
   local result = {}
   for i, item in ipairs(buffers) do
-    if is_existing_file(item.path) then
-      table.insert(result, {
-        number = i,
-        name = item.name,
-        path = item.path,
-        is_open = find_buffer_by_path(item.path) ~= nil
-      })
-    end
+    table.insert(result, {
+      number = i,
+      name = item.name,
+      path = item.path,
+      is_open = find_buffer_by_path(item.path) ~= nil
+    })
   end
   return result
 end
 
 
 
+function M.cleanup_nonexistent_buffers()
+  local buffers = get_buffers_with_numbers()
+  local valid_buffers = {}
 
+  for _, buf in ipairs(buffers) do
+    if buf then
+      table.insert(valid_buffers, {
+        name = buf.name,
+        path = buf.path
+      })
+    end
+  end
 
+  -- Salva apenas os buffers válidos
+  local current_path = get_current_path()
+  local cache_data = load_cache()
+  cache_data[current_path] = valid_buffers
+  save_cache(cache_data)
+end
 
 --- Remove one buffer from cache.
 --- @param path string Absolute path to remove buffer
@@ -789,7 +804,6 @@ function M.setting_config_style(style)
   end
 end
 
-
 --- Lounch a window tha shows all buffers related to the current_path
 function M.show_buffers_in_float()
   ---- Setting window configs ------------------------------------------------------------
@@ -851,6 +865,8 @@ function M.show_buffers_in_float()
       },
       footer = { { " BUFFERS " } }
     })
+
+
 
 
     if M.flag_confirmation and M.current_query ~= nil then
@@ -1070,6 +1086,41 @@ function M.show_buffers_in_float()
         end
       end)
       break
+    elseif char_str == '#' then
+      local path = vim.fn.getcwd()
+      local search_string = tostring(table.concat(query))
+      local command = string.format('rg --files %s | rg %s', path, search_string)
+
+      vim.notify("Executando: " .. command, vim.log.levels.WARN)
+
+      local handle = io.popen(command)
+      if not handle then
+        vim.notify("Falha ao executar comando", vim.log.levels.WARN)
+        return {}
+      end
+
+      local result = handle:read("*a")
+      handle:close()
+
+      local files = {}
+      for line in result:gmatch("[^\r\n]+") do
+        table.insert(files, line)
+      end
+
+      -- Log resumido
+      vim.notify(string.format("Encontrados %d arquivos", #files) , vim.log.levels.WARN)
+
+      -- Log detalhado se quiser
+      if #files > 0 then
+        print("Lista de arquivos:")
+        for i, file in ipairs(files) do
+          vim.notify(string.format("   %d. %s", i, file) , vim.log.levels.WARN)
+        end
+      end
+
+      update_display()
+      -- break
+
     elseif char_str == 'J' then -- J
       selected_index = math.min(#filtered_buffers, selected_index + 1)
       update_display()
