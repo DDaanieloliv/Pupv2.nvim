@@ -7,6 +7,7 @@ A personal plugin that helps me switch between buffers in Neovim and handle them
 
 ## Features
 
+
 - Path-aware caching: Buffers are organized by project directory
 
 - Persistent cache: Your buffer history survives Neovim sessions
