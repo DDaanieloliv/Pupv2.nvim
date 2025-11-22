@@ -17,7 +17,7 @@ local default_config = {
     list_buffers = "<leader>ls",
     move_backward = "<leader>[",
     move_forward = "<leader>]",
-    buffer_picker = "ç",
+    buffer_picker = "<leader>m",
     close_buffer = "<leader>q",
     clear_path = "<leader>x",
     remove_last = "<leader>r",
@@ -93,7 +93,7 @@ local function is_valid_buffer(buf)
   local buf_name = vim.api.nvim_buf_get_name(buf)
   local buftype = get_buf_option(buf, "buftype")
   local filetype = get_buf_option(buf, "filetype")
-  return buf_name ~= "" and buftype == "" and filetype ~= "" and vim.fn.filereadable(buf_name) == 1
+  return buf_name ~= "" and buftype == "" and filetype ~= nil and vim.fn.filereadable(buf_name) == 1
 end
 
 
@@ -327,8 +327,52 @@ local function remove_buffer_from_cache(path, force)
 end
 
 
+M.search_mode_status = false
+
+function M.get_search_mode(query)
+  local path = vim.fn.getcwd()
+  local search_string = tostring(table.concat(query))
+  local command = string.format('rg --files %s | rg %s', path, search_string)
+
+  if search_string:len() == 0 then
+    command = string.format('rg --files %s', path)
+  end
 
 
+  local handle = io.popen(command)
+  if not handle then
+    vim.notify("Falha ao executar comando", vim.log.levels.WARN)
+    return {}
+  end
+
+  local result = handle:read("*a")
+  handle:close()
+
+  local files = {}
+  local index = 1
+  for line in result:gmatch("[^\r\n]+") do
+    table.insert(files, {
+      number = index,
+      name = line:match("([^/]+)$"),
+      path = line,
+      is_open = find_buffer_by_path(line) ~= nil
+    })
+    index = index + 1
+  end
+
+  -- Log resumido
+  vim.notify(string.format("Encontrados %d arquivos", #files), vim.log.levels.WARN)
+
+  -- Log detalhado se quiser
+  -- if #files > 0 then
+  --   print("Lista de arquivos:")
+  --   for i, file in ipairs(files) do
+  --     vim.notify(string.format("%d. %s", i, file.path), vim.log.levels.WARN)
+  --   end
+  -- end
+
+  return files
+end
 
 --- Loads cache_data, looks for last_buffer to remove it, unless it is the current buffer
 ---
@@ -804,6 +848,268 @@ function M.setting_config_style(style)
   end
 end
 
+function M.select_file(file_path)
+  if not file_path or file_path == "" then
+    vim.notify("File path is empty", vim.log.levels.WARN)
+    return false
+  end
+
+  -- Verificar se o arquivo existe
+  if vim.fn.filereadable(file_path) == 0 then
+    vim.notify("File does not exist: " .. file_path, vim.log.levels.ERROR)
+    return false
+  end
+
+  -- Abrir o arquivo
+  vim.cmd("edit " .. vim.fn.fnameescape(file_path))
+  return true
+end
+
+function M.pick_files_system()
+  ---- Setting window configs ------------------------------------------------------------
+
+  local MAX_DISPLAY = 999 -- ou 500, 1000, etc
+  local displayed_count = 0
+
+  local style = M.config.style
+  local query = {}
+  local buffers = M.get_search_mode(query)
+  local search_term
+  local selected_index = 1
+  local filtered_buffers = buffers
+  local num_lines = count_line_buffers(buffers)
+
+
+  local width = 70
+  local height = math.min(22, num_lines + 15)
+  local row = vim.o.lines - height - 1
+  local col = 0
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = {
+      { style.prompt_symbol,                              "PromptSymbol" },
+      { " " .. table.concat(query) .. style.input_cursor, "InputText" }
+    },
+    title_pos = "left",
+    footer = {
+      { " Buffers ", "FloatFooter" }
+    },
+    footer_pos = "left",
+  })
+
+  -- vim.api.nvim_set_option_value('numberwidth', 1, { win = win })
+  vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+  vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
+  vim.api.nvim_set_option_value('number', false, { win = win })
+  vim.api.nvim_set_option_value('cursorline', true, { win = win })
+  vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
+  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
+
+  M.setting_config_style(style)
+
+  -----------------------------------------------------------------------------------------------------
+
+
+  ---- Function that deal with text input -------------------------------------------------------------
+
+  -- Function update_display with truncate
+  local function update_display()
+    --[[ The function : nvim_buf_set_option is Deprecated. Use |nvim_set_option_value()| instead. ]]
+    -- vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+    --
+    -- Now we allow the buffer to be modified
+    vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
+
+    -- Update the title
+    vim.api.nvim_win_set_config(win, {
+      title = {
+        { style.prompt_symbol,                              "PromptSymbol" },
+        { " " .. table.concat(query) .. style.input_cursor, "InputText" }
+      },
+      footer = { { " BUFFERS " } }
+    })
+
+    -- Based on the content on table query we filter the table 'buffers'
+    -- Creating a new table 'filtered_buffers' tha are displyed later according to what we type
+    if #query > 0 then
+      search_term = table.concat(query):lower()
+      filtered_buffers = {}
+      for _, buf_item in ipairs(buffers) do
+        if buf_item.name:lower():find(search_term, 1, true) or
+            buf_item.path:lower():find(search_term, 1, true) then
+          table.insert(filtered_buffers, buf_item)
+        end
+      end
+    else
+      filtered_buffers = buffers   -- Show all buffers when no search term
+    end
+    -- selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
+
+    local display_buffers = {}
+    displayed_count = 0
+
+    for i, buf_item in ipairs(filtered_buffers) do
+      if i <= MAX_DISPLAY then
+        table.insert(display_buffers, buf_item)
+        displayed_count = displayed_count + 1
+      else
+        break
+      end
+    end
+
+
+    -- Updates content with truncated paths
+    --
+    -- With the 'filtered_buffers' that we get, base on the query we fill 'lines' table with
+    -- the Itens from 'filtered_buffers', but now with a truncated path tha fits on the window and a status
+    local lines = {}
+    -- In first interaction 'filtered_buffers' is a table with all buffers related to the current_path
+    for _, buf_item in ipairs(display_buffers) do
+      local status = buf_item.is_open and "🖹" or "🖹"
+      -- Uses truncate_path to ensure the file name is visible
+      local truncated_path = truncate_path(buf_item.path, 69) -- Fit within window width
+      local line = string.format("%s%s", status, truncated_path)
+      table.insert(lines, line)
+    end
+
+    local total_count = #filtered_buffers
+    if total_count > MAX_DISPLAY then
+      table.insert(lines, string.format("... and %d more buffers (type to filter)", total_count - MAX_DISPLAY))
+    end
+
+    -- Relace the lines on the buffer with the lines of an array
+    -- So with that we change the buffer displyed on the window, to show the buffes in table 'lines'
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    -- vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+    --[[ The function : nvim_buf_set_option is Deprecated. Use |nvim_set_option_value()| instead. ]]
+    -- vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+
+    -- Lock the buffer edition for safety
+    vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+
+    -- Move the cursor to the selected item
+    vim.api.nvim_win_set_cursor(win, { selected_index, 0 })
+    -- Refresh the buffer or window with all the new settings like selected_index highlight and etc...
+    vim.cmd("redraw")
+  end
+  -----------------------------------------------------------------------------------------------------
+
+  -- Call update_display after we create it
+  update_display()
+
+  -- Main Loop
+  --
+  -- That main loop after we open the float window and we call tha 'update_display'
+  -- function above, we starts a loop which get each input sent by our keyboard except
+  -- the keybindings which are defined bellow
+  while true do
+    local ok, char_str = pcall(vim.fn.getcharstr)
+    if not ok then break end
+    -- Detect Alt+Number (special keys)
+    -- That logical block will catch every char Array that are sent by 'vim.fn.getcharstr'
+    -- and process each BYTE seatches for matchs that represente the keybindings ALT + [1-9]
+    -- and if that matchs happen we catch the number which comes with and open the buffer with that number
+    if #char_str == 4 then
+      local byte1, byte2, byte3, byte4 = char_str:byte(1), char_str:byte(2), char_str:byte(3), char_str:byte(4)
+      -- Exactly default: <80><fc>^H[1-9]
+      if byte1 == 128 and byte2 == 252 and byte3 == 8 and byte4 >= 49 and byte4 <= 57 then
+        local ctrl_number = byte4 - 48 -- Convert ASCII to number (49->1, 50->2, etc.)
+        vim.schedule(function()
+          if ctrl_number <= #filtered_buffers then
+            M.select_file(filtered_buffers[ctrl_number].path)
+          end
+        end)
+        break
+      end
+    end
+
+    -- Detect backspaces (all variants)
+    local is_backspace = char_str == '\8' or char_str == '\127' or char_str:find("kb") or char_str:find("<80>")
+    -- Check keys by their string representation
+    if char_str == '\12' then -- Ctrl+l (form feed)
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M.select_file(filtered_buffers[selected_index].path)
+        end
+      end)
+      break
+    elseif char_str == 'O' then
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M.select_file(filtered_buffers[selected_index].path)
+        end
+      end)
+      break
+    elseif char_str == '#' then
+      update_display()
+      -- break
+    elseif char_str == 'J' then -- J
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == 'K' then -- K
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\10' then -- Ctrl+j (line feed)
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == '\11' then -- Ctrl+k (vertical tab)
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\14' then -- Ctrl+n (shift out)
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == '\16' then -- Ctrl+p (data link escape)
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\9' then -- TAB
+      selected_index = (selected_index % #filtered_buffers) + 1
+      update_display()
+      -- elseif tonumber(char_str) then -- Numbers 0-9
+      --   local num = tonumber(char_str)
+      --   if num <= #filtered_buffers then
+      --     selected_index = num
+      --     update_display()
+      --   end
+    elseif char_str == '\27' then -- Escape
+      break
+    elseif char_str == '\13' then -- Enter
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M.select_file(filtered_buffers[selected_index].path)
+        end
+      end)
+      break
+    elseif is_backspace then
+      if #query > 0 then
+        table.remove(query)
+        selected_index = 1
+        update_display()
+      end
+      -- Search characters i.e. that character typed only will be add to 'query'
+      -- if the characters size was equas to 1 and if it was a character that is NOT a white space
+    elseif #char_str == 1 and char_str:match('%S') then
+      table.insert(query, char_str)
+      selected_index = 1
+      update_display()
+    end
+  end
+  --- When some action like entry on a buffer was called by some keybindings the main loop ends and
+  --- we execute the command to close the window
+  vim.api.nvim_win_close(win, true)
+  M._float_win = win
+end
+
+
+
 --- Lounch a window tha shows all buffers related to the current_path
 function M.show_buffers_in_float()
   ---- Setting window configs ------------------------------------------------------------
@@ -836,7 +1142,8 @@ function M.show_buffers_in_float()
     },
     title_pos = "left",
     footer = {
-      { " Buffers ", "FloatFooter" }
+      { " Buffers ", "FloatFooter" },
+      { "OK",        "FloatFooter" }
     },
     footer_pos = "left",
   })
@@ -1087,40 +1394,11 @@ function M.show_buffers_in_float()
       end)
       break
     elseif char_str == '#' then
-      local path = vim.fn.getcwd()
-      local search_string = tostring(table.concat(query))
-      local command = string.format('rg --files %s | rg %s', path, search_string)
-
-      vim.notify("Executando: " .. command, vim.log.levels.WARN)
-
-      local handle = io.popen(command)
-      if not handle then
-        vim.notify("Falha ao executar comando", vim.log.levels.WARN)
-        return {}
-      end
-
-      local result = handle:read("*a")
-      handle:close()
-
-      local files = {}
-      for line in result:gmatch("[^\r\n]+") do
-        table.insert(files, line)
-      end
-
-      -- Log resumido
-      vim.notify(string.format("Encontrados %d arquivos", #files) , vim.log.levels.WARN)
-
-      -- Log detalhado se quiser
-      if #files > 0 then
-        print("Lista de arquivos:")
-        for i, file in ipairs(files) do
-          vim.notify(string.format("   %d. %s", i, file) , vim.log.levels.WARN)
-        end
-      end
-
+      -- M.search_mode_status = true
+      -- buffers = M.get_search_mode(query)
       update_display()
-      -- break
 
+      -- break
     elseif char_str == 'J' then -- J
       selected_index = math.min(#filtered_buffers, selected_index + 1)
       update_display()
@@ -1329,6 +1607,11 @@ function M.pick_last()
   end
 end
 
+function M.add_it_to_cache()
+  local buf = vim.api.nvim_get_current_buf()
+  add_buffer_to_cache(buf)
+end
+
 ---------------------------------------------------------------------------------------------------------
 
 
@@ -1337,11 +1620,18 @@ end
 function M.setup_keymaps()
   local keymaps = M.config.keymaps
 
+  vim.keymap.set("n", '<leader>a', function()
+    M.add_it_to_cache()
+    vim.notify("addind that file to buffer_cache...", vim.log.levels.WARN)
+  end, { desc = "Add file to buffer_cache" })
   vim.keymap.set("n", keymaps.pick_previous, M.pick_last, { desc = "Jump to the previous buffer" })
   vim.keymap.set("n", keymaps.list_buffers, M.list_buffers, { desc = "List buffers (with cache)" })
   vim.keymap.set("n", keymaps.move_backward, move_buffer_backward, { desc = "Move buffer backward in list" })
   vim.keymap.set("n", keymaps.move_forward, move_buffer_forward, { desc = "Move buffer forward in list" })
-  vim.keymap.set('n', keymaps.buffer_picker, ':Mag ', { desc = 'Open buffer by number' })
+  vim.keymap.set('n', keymaps.buffer_picker, ':Mag <CR>', { desc = 'Open buffer by number' })
+  vim.keymap.set("n", '<leader>d', function()
+    M.pick_files_system()
+  end, { desc = 'Open file system_search in window' })
 
   vim.keymap.set("n", keymaps.close_buffer, function()
     if is_telescope_window() then
