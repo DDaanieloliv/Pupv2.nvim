@@ -361,7 +361,7 @@ function M.get_search_mode(query)
   end
 
   -- Log resumido
-  vim.notify(string.format("Encontrados %d arquivos", #files), vim.log.levels.WARN)
+  -- vim.notify(string.format("Encontrados %d arquivos", #files), vim.log.levels.WARN)
 
   -- Log detalhado se quiser
   -- if #files > 0 then
@@ -822,7 +822,9 @@ function M.setting_config_style(style)
     vim.cmd(string.format("highlight InputText       guifg=%s", style.input_text))
   end
   if style.cursor_line then
-    vim.cmd(string.format("highlight FloatCursorLine guibg=%s", style.cursor_line))
+    vim.cmd(string.format("highlight FloatCursorLine guifg=#aeaed1 guibg=#252530", style.cursor_line))
+  else
+    vim.cmd(string.format("highlight FloatCursorLine guifg=#aeaed1 guibg=#252530"))
   end
   if style.color_symbol then
     vim.cmd(string.format("highlight PromptSymbol    guifg=%s", style.color_symbol))
@@ -868,7 +870,7 @@ end
 function M.pick_files_system()
   ---- Setting window configs ------------------------------------------------------------
 
-  local MAX_DISPLAY = 999 -- ou 500, 1000, etc
+  local MAX_DISPLAY = 999
   local displayed_count = 0
 
   local style = M.config.style
@@ -900,7 +902,7 @@ function M.pick_files_system()
     },
     title_pos = "left",
     footer = {
-      { " Buffers ", "FloatFooter" }
+      { " FILES ", "FloatFooter" }
     },
     footer_pos = "left",
   })
@@ -934,7 +936,7 @@ function M.pick_files_system()
         { style.prompt_symbol,                              "PromptSymbol" },
         { " " .. table.concat(query) .. style.input_cursor, "InputText" }
       },
-      footer = { { " BUFFERS " } }
+      footer = { { " FILES " } }
     })
 
     -- Based on the content on table query we filter the table 'buffers'
@@ -972,11 +974,13 @@ function M.pick_files_system()
     -- the Itens from 'filtered_buffers', but now with a truncated path tha fits on the window and a status
     local lines = {}
     -- In first interaction 'filtered_buffers' is a table with all buffers related to the current_path
-    for _, buf_item in ipairs(display_buffers) do
-      local status = buf_item.is_open and "🖹" or "🖹"
+    for i, buf_item in ipairs(display_buffers) do
+      local status = buf_item.is_open and "" or ""
       -- Uses truncate_path to ensure the file name is visible
       local truncated_path = truncate_path(buf_item.path, 69) -- Fit within window width
-      local line = string.format("%s%s", status, truncated_path)
+
+      local indicator = (i == selected_index) and "> " or "  "
+      local line = string.format("%s%s%s", indicator, status, truncated_path)
       table.insert(lines, line)
     end
 
@@ -1051,7 +1055,6 @@ function M.pick_files_system()
       break
     elseif char_str == '#' then
       update_display()
-      -- break
     elseif char_str == 'J' then -- J
       selected_index = math.min(#filtered_buffers, selected_index + 1)
       update_display()
