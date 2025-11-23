@@ -18,6 +18,7 @@ local default_config = {
     move_backward = "<leader>[",
     move_forward = "<leader>]",
     buffer_picker = "<leader>m",
+    file_picker = "<leader>d",
     close_buffer = "<leader>q",
     clear_path = "<leader>x",
     remove_last = "<leader>r",
@@ -360,17 +361,7 @@ function M.get_search_mode(query)
     index = index + 1
   end
 
-  -- Log resumido
   -- vim.notify(string.format("Encontrados %d arquivos", #files), vim.log.levels.WARN)
-
-  -- Log detalhado se quiser
-  -- if #files > 0 then
-  --   print("Lista de arquivos:")
-  --   for i, file in ipairs(files) do
-  --     vim.notify(string.format("%d. %s", i, file.path), vim.log.levels.WARN)
-  --   end
-  -- end
-
   return files
 end
 
@@ -822,7 +813,7 @@ function M.setting_config_style(style)
     vim.cmd(string.format("highlight InputText       guifg=%s", style.input_text))
   end
   if style.cursor_line then
-    vim.cmd(string.format("highlight FloatCursorLine guifg=#aeaed1 guibg=#252530", style.cursor_line))
+    vim.cmd(string.format("highlight FloatCursorLine guibg=%s", style.cursor_line))
   else
     vim.cmd(string.format("highlight FloatCursorLine guifg=#aeaed1 guibg=#252530"))
   end
@@ -951,7 +942,7 @@ function M.pick_files_system()
         end
       end
     else
-      filtered_buffers = buffers   -- Show all buffers when no search term
+      filtered_buffers = buffers -- Show all buffers when no search term
     end
     -- selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
 
@@ -1111,8 +1102,6 @@ function M.pick_files_system()
   M._float_win = win
 end
 
-
-
 --- Lounch a window tha shows all buffers related to the current_path
 function M.show_buffers_in_float()
   ---- Setting window configs ------------------------------------------------------------
@@ -1176,9 +1165,6 @@ function M.show_buffers_in_float()
       footer = { { " BUFFERS " } }
     })
 
-
-
-
     if M.flag_confirmation and M.current_query ~= nil then
       if M.current_query ~= {} then
         local buffers_to_search = M.updated_buffers_by_query()
@@ -1235,7 +1221,6 @@ function M.show_buffers_in_float()
     local lines = {}
     -- In first interaction 'filtered_buffers' is a table with all buffers related to the current_path
     for _, buf_item in ipairs(filtered_buffers) do
-      -- for i, buf_item in ipairs(filtered_buffers) do
       -- local status = buf_item.is_open and " " or "🖹"
       local status = buf_item.is_open and "🖹" or "🖹"
       -- Uses truncate_path to ensure the file name is visible
@@ -1399,7 +1384,13 @@ function M.show_buffers_in_float()
     elseif char_str == '#' then
       -- M.search_mode_status = true
       -- buffers = M.get_search_mode(query)
-      update_display()
+      -- update_display()
+
+      vim.api.nvim_win_close(win, true)
+      vim.schedule(function()
+        M.pick_files_system()
+      end)
+      return
 
       -- break
     elseif char_str == 'J' then -- J
@@ -1632,7 +1623,7 @@ function M.setup_keymaps()
   vim.keymap.set("n", keymaps.move_backward, move_buffer_backward, { desc = "Move buffer backward in list" })
   vim.keymap.set("n", keymaps.move_forward, move_buffer_forward, { desc = "Move buffer forward in list" })
   vim.keymap.set('n', keymaps.buffer_picker, ':Mag <CR>', { desc = 'Open buffer by number' })
-  vim.keymap.set("n", '<leader>d', function()
+  vim.keymap.set("n", keymaps.file_picker, function()
     M.pick_files_system()
   end, { desc = 'Open file system_search in window' })
 

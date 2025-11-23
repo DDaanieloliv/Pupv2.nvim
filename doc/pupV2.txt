@@ -12,6 +12,7 @@ This plugin provides buffer management with:
 - Persistent cache of buffers per working directory
 - Quick navigation using buffer numbers
 - Automatic buffer tracking
+- Eazy switching to file_search mode
 - Telescope integration handling other wise providing a mini.pick's like UI
 
 COMMANDS						*pupV2-commands*
@@ -19,6 +20,8 @@ COMMANDS						*pupV2-commands*
 :Mag [number|name]					*:Mag*
 		List buffers or open specific buffer by number/name
     Show up a mini.pick's like UI with buffers's current working directory
+
+
 
 MAPPINGS						*pupV2-mappings*
 
@@ -29,6 +32,9 @@ MAPPINGS						*pupV2-mappings*
 <leader>cc		Clear entire buffer cache
 <leader>[		Move current buffer backward in list
 <leader>]		Move current buffer forward in list
+<leader>m   Open a float window in the corner that shows all buffers in current path
+<leader>d   Open a float window in the corner that shows all files in current path
+<leader>la  Jump to the last buffer visited
 <A-1> to <A-9>		Quick open buffer 1-9 from cache
 
 CUSTOMIZATION					*pupV2-customization*
@@ -36,33 +42,38 @@ CUSTOMIZATION					*pupV2-customization*
 To customize keymaps: >
 config = function()
   require("pupV2").setup({
-      enabled = true,
       cache_dir = vim.fn.stdpath("data") .. "/buffer_cache",
       keymaps = {
-      list_buffers = "<leader>ls",
-      move_backward = "<leader>[",
-      move_forward = "<leader>]",
-      buffer_picker = "ç",
-      close_buffer = "<leader>q",
-      clear_path = "<leader>x",
-      remove_last = "<leader>r",
-      clear_cache = "<leader>cc"
+        list_buffers = "<leader>ls",
+        move_backward = "<leader>[",
+        move_forward = "<leader>]",
+        buffer_picker = "<leader>m",
+        file_picker = "<leader>d",
+        close_buffer = "<leader>q",
+        clear_path = "<leader>x",
+        remove_last = "<leader>r",
+        pick_previous = "<leader>la",
+        clear_cache = "<leader>cc"
       },
       ignore_patterns = {
-      "neo%-tree", "NvimTree", "packer", "fugitive", "term://", "^no name"
+        "TelescopePrompt", "TelescopeResults", "bufferlist", "neo%-tree", "NvimTree", "packer", "fugitive", "term://",
+        "^no name"
       },
       style = {
-      border = 'rounded',
-      background       = nil,
-      cursor_line      = nil,
-      border_color     = nil,
-      title_color      = nil,
-      color_symbol     = nil,
-      match_highlight  = '#9484D2',
-      input_background = nil,
-      input_text       = nil,
-      prompt_symbol    = '',
-      input_cursor     = '│ ',
+        border           = 'rounded',
+        background       = nil,
+        cursor_line      = nil,
+        border_color     = nil,
+        title_color      = nil,
+        color_symbol     = nil,
+        match_highlight  = '#9484D2',
+        input_background = nil,
+        input_text       = nil,
+        prompt_symbol    = '',
+        input_cursor     = '│ ',
+      },
+      opt_feature = {
+        buffers_trail = false
       }
   })
 end
