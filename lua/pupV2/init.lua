@@ -36,7 +36,7 @@ local default_config = {
     border_color     = nil,
     title_color      = nil,
     color_symbol     = nil,
-    match_highlight  = '#9484D2',
+    match_highlight  = '#f3be7c',
     input_background = nil,
     input_text       = nil,
     prompt_symbol    = '',
@@ -328,7 +328,6 @@ local function remove_buffer_from_cache(path, force)
 end
 
 
-M.search_mode_status = false
 
 function M.get_search_mode(query)
   local path = vim.fn.getcwd()
@@ -722,12 +721,12 @@ function M.buffer_command(args)
   local target_arg = args.args or ""
 
   --[[
-  If the received @param is == "", we call the function 'M.show_buffers_in_float'
+  If the received @param is == "", we call the function 'M.pick_buffer_cache'
   that show all buffer related to the current_path
   ]]
   if target_arg == "" then
     -- Show floating window instead of printing to terminal
-    M.show_buffers_in_float()
+    M.pick_buffer_cache()
     return
   end
 
@@ -991,6 +990,55 @@ function M.pick_files_system()
     -- Lock the buffer edition for safety
     vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
 
+    if #query > 0 then
+      local search_lower = table.concat(query):lower()
+
+      --- We go through each of the lines in filtered_buffers
+      for i, _ in ipairs(display_buffers) do
+        -- for i, buf_item in ipairs(filtered_buffers) do
+        local line_text = lines[i]
+        local line_lower = line_text:lower()
+
+        local start_pos = 1
+        while true do
+          --[[
+          'string.find()' Return two values when find some match, we define 'match_start' that
+          will receive the initial position(related to the string index where the match begins)
+          'match_end' will receive the last position(related to the string index where the match finish)
+          ]]
+          local match_start, match_end = line_lower:find(search_lower, start_pos, true)
+          if not match_start then break end
+          --[[ the function : nvim_buf_add_highlightUse is Deprecated. Use |vim.hl.range()| or |nvim_buf_set_extmark()| ]]
+          -- vim.api.nvim_buf_add_highlight(
+          --   buf,
+          --   ns_id,
+          --   'PickBufferMatch',
+          --   i - 1,
+          --   match_start - 1,
+          --   match_end
+          -- )
+          --- Apply to some range of text related to the buffer, the highlight group
+          vim.hl.range(
+            buf,
+            ns_id,
+            'PickBufferMatch',
+            --- We define the lines where we want to add the highlight groups,
+            --- because since we are adding them to a buffer, we need to specify
+            --- on which line and in which part of its text the group should be applied.
+            --- That’s why we use 'i - 1'. The '-1' is because the Vim API is 0-based.
+            { i - 1, match_start - 1 },
+            { i - 1, match_end },
+            { inclusive = false }
+          )
+          --- That line which update 'start_pos', crucial because when we find the first match
+          --- and we add the highlight group to that match(range text) we set on start_pos the position
+          --- where we stop to search for match line_lower. So it make us come back to the string position
+          --- which we can see 'match_end + 1' and continue searches for matchs in 'line_lower' string.
+          start_pos = match_end + 1
+        end
+      end
+    end
+
     -- Move the cursor to the selected item
     vim.api.nvim_win_set_cursor(win, { selected_index, 0 })
     -- Refresh the buffer or window with all the new settings like selected_index highlight and etc...
@@ -1103,7 +1151,7 @@ function M.pick_files_system()
 end
 
 --- Lounch a window tha shows all buffers related to the current_path
-function M.show_buffers_in_float()
+function M.pick_buffer_cache()
   ---- Setting window configs ------------------------------------------------------------
   local style = M.config.style
   local query = {}
@@ -1382,8 +1430,6 @@ function M.show_buffers_in_float()
       end)
       break
     elseif char_str == '#' then
-      -- M.search_mode_status = true
-      -- buffers = M.get_search_mode(query)
       -- update_display()
 
       vim.api.nvim_win_close(win, true)
