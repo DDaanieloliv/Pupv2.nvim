@@ -804,41 +804,123 @@ function M.config_window_buffer(win, buf)
   vim.api.nvim_set_option_value('numberwidth', 1, { win = win })
   vim.api.nvim_set_option_value('cursorline', true, { win = win })
   vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
-  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
+  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:PmenuSel', { win = win })
 end
 
 function M.setting_config_style(style)
+  -- Se cores foram fornecidas na config, usa elas. Senão, usa links para cores nativas.
+
+  -- Input text
   if style.input_text then
-    vim.cmd(string.format("highlight InputText       guifg=%s", style.input_text))
+    vim.cmd(string.format("highlight InputText guifg=%s", style.input_text))
+    if style.input_background then
+      vim.cmd(string.format("highlight InputText guibg=%s", style.input_background))
+    end
+  else
+    vim.cmd([[
+      if !hlexists('InputText')
+        highlight default link InputText ModeMsg
+      endif
+      if !hlexists('ModeMsg')
+        highlight default link InputText Normal
+      endif
+    ]])
   end
+
+  -- Cursor line
   if style.cursor_line then
     vim.cmd(string.format("highlight FloatCursorLine guibg=%s", style.cursor_line))
   else
-    vim.cmd(string.format("highlight FloatCursorLine guifg=#aeaed1 guibg=#252530"))
+    vim.cmd([[
+      if !hlexists('FloatCursorLine')
+        highlight default link FloatCursorLine PmenuSel
+      endif
+      if !hlexists('PmenuSel')
+        highlight default link FloatCursorLine Visual
+      endif
+    ]])
   end
+
+  -- Prompt symbol
   if style.color_symbol then
-    vim.cmd(string.format("highlight PromptSymbol    guifg=%s", style.color_symbol))
+    vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.color_symbol))
+  else
+    vim.cmd([[
+      if !hlexists('PromptSymbol')
+        highlight default link PromptSymbol Identifier
+      endif
+      if !hlexists('Identifier')
+        highlight default link PromptSymbol Special
+      endif
+    ]])
   end
-  if style.input_background then
-    vim.cmd(string.format("highlight InputText       guibg=%s", style.input_background))
-  end
+
+  -- Match highlight
   if style.match_highlight then
     vim.cmd(string.format("highlight PickBufferMatch guifg=%s gui=bold", style.match_highlight))
+  else
+    vim.cmd("highlight default link PickBufferMatch Search")
   end
+
+  -- Titles
   if style.title_color then
-    vim.cmd(string.format("highlight FloatTitle      guifg=%s", style.title_color))
-    vim.cmd(string.format("highlight FloatFooter     guifg=%s", style.title_color))
+    vim.cmd(string.format("highlight FloatTitle guifg=%s", style.title_color))
+    vim.cmd(string.format("highlight FloatFooter guifg=%s", style.title_color))
+  else
+    vim.cmd([[
+      if !hlexists('FloatTitle')
+        highlight default link FloatTitle Title
+      endif
+      if !hlexists('Title')
+        highlight default link FloatTitle Special
+      endif
+    ]])
+    vim.cmd("highlight default link FloatFooter Comment")
   end
+
+  -- Border
   if style.border_color then
-    vim.cmd(string.format("highlight PromptSymbol    guifg=%s", style.border_color))
-    vim.cmd(string.format("highlight FloatBorder     guifg=%s", style.border_color))
+    vim.cmd(string.format("highlight FloatBorder guifg=%s", style.border_color))
+    if style.background then
+      vim.cmd(string.format("highlight FloatBorder guibg=%s", style.background))
+    end
+  else
+    vim.cmd([[
+      if !hlexists('FloatBorder')
+        highlight default link FloatBorder Normal
+      endif
+    ]])
   end
+
+  -- Background
   if style.background then
-    vim.cmd(string.format("highlight NormalFloat     guibg=%s", style.background))
-    vim.cmd(string.format("highlight FloatBorder     guibg=%s", style.background))
-    vim.cmd(string.format("highlight PromptSymbol    guibg=%s", style.background))
+    vim.cmd(string.format("highlight NormalFloat guibg=%s", style.background))
+    -- Aplicar background também ao border e prompt se não tiverem cores específicas
+    if not style.border_color then
+      vim.cmd(string.format("highlight FloatBorder guibg=%s", style.background))
+    end
+    if not style.color_symbol then
+      vim.cmd(string.format("highlight PromptSymbol guibg=%s", style.background))
+    end
+  else
+    vim.cmd([[
+      if !hlexists('NormalFloat')
+        highlight default link NormalFloat Pmenu
+      endif
+      if !hlexists('Pmenu')
+        highlight default link NormalFloat Normal
+      endif
+    ]])
   end
+
+  -- BufferPickerIndicator (sempre com fallback)
+  vim.cmd([[
+    if !hlexists('BufferPickerIndicator')
+      highlight default BufferPickerIndicator guifg=#ff6c6b guibg=NONE gui=bold
+    endif
+  ]])
 end
+
 
 function M.select_file(file_path)
   if not file_path or file_path == "" then
@@ -903,8 +985,10 @@ function M.pick_files_system()
   vim.api.nvim_set_option_value('number', false, { win = win })
   vim.api.nvim_set_option_value('cursorline', true, { win = win })
   vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
-  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
+  -- vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
 
+
+  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:PmenuSel', { win = win })
   M.setting_config_style(style)
 
   -----------------------------------------------------------------------------------------------------
