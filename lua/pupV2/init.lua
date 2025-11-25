@@ -41,6 +41,7 @@ local default_config = {
     input_text       = nil,
     prompt_symbol    = '',
     input_cursor     = '│ ',
+    virt_text        = '>'
   },
   opt_feature = {
     buffers_trail = false
@@ -807,6 +808,9 @@ function M.config_window_buffer(win, buf)
   vim.api.nvim_set_option_value('winhighlight', 'CursorLine:PmenuSel', { win = win })
 end
 
+
+
+
 function M.setting_config_style(style)
   -- Se cores foram fornecidas na config, usa elas. Senão, usa links para cores nativas.
 
@@ -916,7 +920,7 @@ function M.setting_config_style(style)
   -- BufferPickerIndicator (sempre com fallback)
   vim.cmd([[
     if !hlexists('BufferPickerIndicator')
-      highlight default BufferPickerIndicator guifg=#ff6c6b guibg=NONE gui=bold
+      highlight default BufferPickerIndicator guifg=#aeaed1 guibg=NONE
     endif
   ]])
 end
@@ -939,9 +943,12 @@ function M.select_file(file_path)
   return true
 end
 
-function M.pick_files_system()
-  ---- Setting window configs ------------------------------------------------------------
 
+
+
+function M.pick_files_system()
+
+  ---- Setting window configs ------------------------------------------------------------
   local MAX_DISPLAY = 999
   local displayed_count = 0
 
@@ -952,7 +959,6 @@ function M.pick_files_system()
   local selected_index = 1
   local filtered_buffers = buffers
   local num_lines = count_line_buffers(buffers)
-
 
   local width = 70
   local height = math.min(22, num_lines + 15)
@@ -979,22 +985,18 @@ function M.pick_files_system()
     footer_pos = "left",
   })
 
-  -- vim.api.nvim_set_option_value('numberwidth', 1, { win = win })
   vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
   vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
   vim.api.nvim_set_option_value('number', false, { win = win })
   vim.api.nvim_set_option_value('cursorline', true, { win = win })
   vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
-  -- vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
-
-
   vim.api.nvim_set_option_value('winhighlight', 'CursorLine:PmenuSel', { win = win })
+
   M.setting_config_style(style)
 
+  local indicator_ns = vim.api.nvim_create_namespace("buffer_picker_indicator")
+
   -----------------------------------------------------------------------------------------------------
-
-
-  ---- Function that deal with text input -------------------------------------------------------------
 
   -- Function update_display with truncate
   local function update_display()
@@ -1041,19 +1043,18 @@ function M.pick_files_system()
       end
     end
 
-
     -- Updates content with truncated paths
     --
     -- With the 'filtered_buffers' that we get, base on the query we fill 'lines' table with
     -- the Itens from 'filtered_buffers', but now with a truncated path tha fits on the window and a status
     local lines = {}
     -- In first interaction 'filtered_buffers' is a table with all buffers related to the current_path
-    for i, buf_item in ipairs(display_buffers) do
+    for _, buf_item in ipairs(display_buffers) do
       local status = buf_item.is_open and "" or ""
       -- Uses truncate_path to ensure the file name is visible
       local truncated_path = truncate_path(buf_item.path, 69) -- Fit within window width
 
-      local indicator = (i == selected_index) and "> " or "  "
+      local indicator = "  " -- Espaços reservados
       local line = string.format("%s%s%s", indicator, status, truncated_path)
       table.insert(lines, line)
     end
@@ -1073,6 +1074,43 @@ function M.pick_files_system()
 
     -- Lock the buffer edition for safety
     vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+
+    vim.api.nvim_buf_clear_namespace(buf, indicator_ns, 0, -1)
+
+    if #display_buffers > 0 and selected_index <= #display_buffers then
+      vim.api.nvim_buf_set_extmark(
+        buf,
+        indicator_ns,
+        selected_index - 1,
+        0,
+        {
+          virt_text = { { style.virt_text, "BufferPickerIndicator" } },
+          virt_text_pos = "overlay",
+          virt_text_win_col = 0,
+          priority = 10000,
+          strict = false,
+        }
+      )
+
+      -- for i, _ in ipairs(display_buffers) do
+      --   if i ~= selected_index then
+      --     vim.api.nvim_buf_set_extmark(
+      --       buf,
+      --       indicator_ns,
+      --       i - 1,
+      --       0,
+      --       {
+      --         virt_text = { { " ", "Normal" } }, -- Espaço invisível
+      --         virt_text_pos = "overlay",
+      --         virt_text_win_col = 0,
+      --         priority = 10000,
+      --         strict = false,
+      --       }
+      --     )
+      --   end
+      -- end
+    end
+
 
     if #query > 0 then
       local search_lower = table.concat(query):lower()
