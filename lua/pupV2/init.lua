@@ -1338,14 +1338,12 @@ function M.pick_buffer_cache()
     if M.flag_confirmation and M.current_query ~= nil then
       if M.current_query ~= {} then
         local buffers_to_search = M.updated_buffers_by_query()
-
         if #query > 0 then
           search_term = table.concat(query):lower()
         end
         if #query == 0 then
           filtered_buffers = M.updated_buffers_by_query()
         end
-
         if search_term ~= nil then
           filtered_buffers = {}
           for _, buf_item in ipairs(buffers_to_search) do
@@ -1371,9 +1369,9 @@ function M.pick_buffer_cache()
       else
         filtered_buffers = buffers -- Show all buffers when no search term
       end
-      -- selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
     end
 
+    vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
     -- Clears previous highlights
     --
     -- • {buffer}      Buffer id, or 0 for current buffer
@@ -1413,10 +1411,10 @@ function M.pick_buffer_cache()
     -- Lock the buffer edition for safety
     vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
 
+
     -- Apply highlight to matches
     if #query > 0 then
       local search_lower = table.concat(query):lower()
-
       --- We go through each of the lines in filtered_buffers
       for i, _ in ipairs(filtered_buffers) do
         -- for i, buf_item in ipairs(filtered_buffers) do

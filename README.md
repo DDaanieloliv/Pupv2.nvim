@@ -7,6 +7,7 @@ A personal plugin that helps me switch between buffers in Neovim and handle them
 
 ## Features
 
+
 - Path-aware caching: Buffers are organized by project directory
 
 - Persistent cache: Your buffer history survives Neovim sessions
@@ -14,6 +15,8 @@ A personal plugin that helps me switch between buffers in Neovim and handle them
 - Automatic cleanup: Removes invalid buffers and maintains organization
 
 - Last Buffer Swap: Jump to the previous buffer visited
+
+- Buffer trail: Your last query is persisted in a stack
 
 ## Overview
 
@@ -72,7 +75,8 @@ A floating window displays your buffers in chronological order. Features include
 - **Real-time Filtering**: Start typing to instantly filter buffers
 - **Keyboard Navigation**: Multiple keybinding options for different workflows
 
-  
+
+   
 ### Usage cycle
 
 - **Basic Navigation**:
@@ -83,12 +87,11 @@ A floating window displays your buffers in chronological order. Features include
   - `<Esc>` - Close window
 
 - **Direct Access**:
-  - `Alt+1` to `Alt+9` - Jump to buffer 1-9 directly
-  - Type numbers - Select buffer by index
- 
+  - `Alt+1` to `Alt+9` - Jump to buffer 1-9 directly 
   
 
 ## Default config
+
 
 - Default configuration (customize as needed):
 
@@ -122,6 +125,9 @@ require('pupV2').setup({
     input_text       = nil,
     prompt_symbol    = '',
     input_cursor     = '│ ',
+  },
+  opt_feature = {
+    buffers_trail = false
   }
 })
 ```
@@ -135,7 +141,6 @@ require('pupV2').setup({
 ```Key	Action
 <leader>bf	    Open floating buffer picker
 <A-1> to <A-9>	Open buffer 1-9 directly
-ç	              Open buffer command palette
 <leader>ls	    List all cached buffers
 ```
 
