@@ -1,6 +1,7 @@
 # PupV2.nvim
 
 A personal plugin that helps me switch between buffers in Neovim and handle them per working directory.
+Whith a file search builtin ripgrep powered.
 
 <img width="1903" height="1033" alt="image" src="https://github.com/user-attachments/assets/0ca7a31b-34a7-407d-b68b-4159eab72f8c" />
 
@@ -18,12 +19,20 @@ A personal plugin that helps me switch between buffers in Neovim and handle them
 
 - Buffer trail: Your last query is persisted in a stack
 
+- FileSearche: Find your file in the current path
+
 ## Overview
 
 The main motivation is to provide an "environment" with buffers that I often use in my projects.
-Making it easier to navigate between them and search for them.
+Making it easier to navigate between them and search for them, and whith pick_file_system enter on buffer that have not yet been added.
 
 ## Dependecies
+
+This plugin use ripgrep to grep the files in file system.
+Ripgrep (´rg´) is a fast, line-oriented search tool that recursively searches for a regular expression pattern in your current directory, while respecting .gitignore rules and ignoring hidden and binary files by default. You can chose your favorite package manager to install this tool, or use this git repository ['ripgrep'](https://github.com/BurntSushi/ripgrep).
+
+
+
 
 To use the telescope options like, <leader>ls you should using the plugin ['telescope.nvim'](https://github.com/nvim-telescope/telescope.nvim).
 
