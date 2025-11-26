@@ -29,8 +29,6 @@ Making it easier to navigate between them and search for them, and whith pick_fi
 ## Dependecies
 
 - This plugin use ripgrep to grep the files in file system.
-<br>
-
 
  >_Ripgrep 'rg' is a fast, line-oriented search tool that recursively searches for a regular expression pattern in your current directory, while respecting .gitignore rules and ignoring hidden and binary files by default._
 
