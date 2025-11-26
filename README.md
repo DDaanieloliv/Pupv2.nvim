@@ -153,9 +153,10 @@ require('pupV2').setup({
 - Navigation
 
 ```Key	Action
-<leader>bf	    Open floating buffer picker in Telescope.
 <A-1> to <A-9>	Open buffer 1-9 directly
-<leader>ls	    List all cached buffers
+<leader>ls	    List all cached buffers in telescope
+<leader>m      Open a float window to pick buffers added to the current path
+<leader>d      Open a float window to pick every file in the current path
 ```
 
 - Buffer Management
