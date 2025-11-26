@@ -17,7 +17,8 @@ local default_config = {
     list_buffers = "<leader>ls",
     move_backward = "<leader>[",
     move_forward = "<leader>]",
-    buffer_picker = "ç",
+    buffer_picker = "<leader>m",
+    file_picker = "<leader>d",
     close_buffer = "<leader>q",
     clear_path = "<leader>x",
     remove_last = "<leader>r",
@@ -35,11 +36,12 @@ local default_config = {
     border_color     = nil,
     title_color      = nil,
     color_symbol     = nil,
-    match_highlight  = '#9484D2',
+    match_highlight  = '#f3be7c',
     input_background = nil,
     input_text       = nil,
     prompt_symbol    = '',
     input_cursor     = '│ ',
+    virt_text        = '>'
   },
   opt_feature = {
     buffers_trail = false
@@ -93,7 +95,7 @@ local function is_valid_buffer(buf)
   local buf_name = vim.api.nvim_buf_get_name(buf)
   local buftype = get_buf_option(buf, "buftype")
   local filetype = get_buf_option(buf, "filetype")
-  return buf_name ~= "" and buftype == "" and filetype ~= "" and vim.fn.filereadable(buf_name) == 1
+  return buf_name ~= "" and buftype == "" and filetype ~= nil and vim.fn.filereadable(buf_name) == 1
 end
 
 
@@ -266,13 +268,13 @@ local function get_buffers_with_numbers()
 
   local result = {}
   for i, item in ipairs(buffers) do
-      table.insert(result, {
-        number = i,
-        name = item.name,
-        path = item.path,
-        is_open = find_buffer_by_path(item.path) ~= nil
-      })
-    end
+    table.insert(result, {
+      number = i,
+      name = item.name,
+      path = item.path,
+      is_open = find_buffer_by_path(item.path) ~= nil
+    })
+  end
   return result
 end
 
@@ -297,8 +299,6 @@ function M.cleanup_nonexistent_buffers()
   cache_data[current_path] = valid_buffers
   save_cache(cache_data)
 end
-
-
 
 --- Remove one buffer from cache.
 --- @param path string Absolute path to remove buffer
@@ -330,7 +330,40 @@ end
 
 
 
+function M.get_search_mode(query)
+  local path = vim.fn.getcwd()
+  local search_string = tostring(table.concat(query))
+  local command = string.format('rg --files %s | rg %s', path, search_string)
 
+  if search_string:len() == 0 then
+    command = string.format('rg --files %s', path)
+  end
+
+
+  local handle = io.popen(command)
+  if not handle then
+    vim.notify("Falha ao executar comando", vim.log.levels.WARN)
+    return {}
+  end
+
+  local result = handle:read("*a")
+  handle:close()
+
+  local files = {}
+  local index = 1
+  for line in result:gmatch("[^\r\n]+") do
+    table.insert(files, {
+      number = index,
+      name = line:match("([^/]+)$"),
+      path = line,
+      is_open = find_buffer_by_path(line) ~= nil
+    })
+    index = index + 1
+  end
+
+  -- vim.notify(string.format("Encontrados %d arquivos", #files), vim.log.levels.WARN)
+  return files
+end
 
 --- Loads cache_data, looks for last_buffer to remove it, unless it is the current buffer
 ---
@@ -618,6 +651,17 @@ local function truncate_path(path, max_width)
 end
 
 
+
+local function count_line_buffers(buffers)
+  local num_lines = 0
+  if buffers then
+    for i, _ in ipairs(buffers) do
+      num_lines = i
+    end
+  end
+  return num_lines
+end
+
 ---------------------------------------------------------------------------------------------------------
 
 
@@ -627,6 +671,10 @@ end
 
 
 ------ M.table functios ---------------------------------------------------------------------------------
+
+
+M.current_query = {}
+M.flag_confirmation = nil
 
 
 --- Based on the argument received(String) we searches for that string which is a number and shoud
@@ -670,18 +718,16 @@ function M.buffer_command(args)
   if type(args) == "string" then
     args = { args = args }
   end
-
   args = args or {}
   local target_arg = args.args or ""
 
-
   --[[
-  If the received @param is == "", we call the function 'M.show_buffers_in_float'
+  If the received @param is == "", we call the function 'M.pick_buffer_cache'
   that show all buffer related to the current_path
   ]]
   if target_arg == "" then
     -- Show floating window instead of printing to terminal
-    M.show_buffers_in_float()
+    M.pick_buffer_cache()
     return
   end
 
@@ -735,7 +781,6 @@ end
 function M.updated_buffers_by_query()
   local buffers = get_buffers_with_numbers()
   local filtered_buffers = buffers
-
   local temp = {}
 
   for _, term in ipairs(M.current_query) do
@@ -749,48 +794,175 @@ function M.updated_buffers_by_query()
     end
     filtered_buffers = temp
   end
-
   return filtered_buffers
 end
 
-M.buffers_history = nil
+function M.config_window_buffer(win, buf)
+  vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+  vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
+  ---
+  vim.api.nvim_set_option_value('number', true, { win = win })
+  vim.api.nvim_set_option_value('numberwidth', 1, { win = win })
+  vim.api.nvim_set_option_value('cursorline', true, { win = win })
+  vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
+  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:PmenuSel', { win = win })
+end
 
-M.current_query = {}
-
-M.flag_confirmation = nil
 
 
---- Lounch a window tha shows all buffers related to the current_path
----
-function M.show_buffers_in_float()
-  local buffers = get_buffers_with_numbers()
-  local style = M.config.style
 
-  local search_term
-  local query = {}
-  local selected_index = 1
+function M.setting_config_style(style)
+  -- Se cores foram fornecidas na config, usa elas. Senão, usa links para cores nativas.
 
-  if M.config.opt_feature.buffers_trail then
-    if M.buffers_history ~= nil then
-      buffers = M.buffers_history
+  -- Input text
+  if style.input_text then
+    vim.cmd(string.format("highlight InputText guifg=%s", style.input_text))
+    if style.input_background then
+      vim.cmd(string.format("highlight InputText guibg=%s", style.input_background))
     end
+  else
+    vim.cmd([[
+      if !hlexists('InputText')
+        highlight default link InputText ModeMsg
+      endif
+      if !hlexists('ModeMsg')
+        highlight default link InputText Normal
+      endif
+    ]])
   end
-  local filtered_buffers = buffers
 
+  -- Cursor line
+  if style.cursor_line then
+    vim.cmd(string.format("highlight FloatCursorLine guibg=%s", style.cursor_line))
+  else
+    vim.cmd([[
+      if !hlexists('FloatCursorLine')
+        highlight default link FloatCursorLine PmenuSel
+      endif
+      if !hlexists('PmenuSel')
+        highlight default link FloatCursorLine Visual
+      endif
+    ]])
+  end
+
+  -- Prompt symbol
+  if style.color_symbol then
+    vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.color_symbol))
+  else
+    vim.cmd([[
+      if !hlexists('PromptSymbol')
+        highlight default link PromptSymbol Identifier
+      endif
+      if !hlexists('Identifier')
+        highlight default link PromptSymbol Special
+      endif
+    ]])
+  end
+
+  -- Match highlight
+  if style.match_highlight then
+    vim.cmd(string.format("highlight PickBufferMatch guifg=%s gui=bold", style.match_highlight))
+  else
+    vim.cmd("highlight default link PickBufferMatch Search")
+  end
+
+  -- Titles
+  if style.title_color then
+    vim.cmd(string.format("highlight FloatTitle guifg=%s", style.title_color))
+    vim.cmd(string.format("highlight FloatFooter guifg=%s", style.title_color))
+  else
+    vim.cmd([[
+      if !hlexists('FloatTitle')
+        highlight default link FloatTitle Title
+      endif
+      if !hlexists('Title')
+        highlight default link FloatTitle Special
+      endif
+    ]])
+    vim.cmd("highlight default link FloatFooter Comment")
+  end
+
+  -- Border
+  if style.border_color then
+    vim.cmd(string.format("highlight FloatBorder guifg=%s", style.border_color))
+    if style.background then
+      vim.cmd(string.format("highlight FloatBorder guibg=%s", style.background))
+    end
+  else
+    vim.cmd([[
+      if !hlexists('FloatBorder')
+        highlight default link FloatBorder Normal
+      endif
+    ]])
+  end
+
+  -- Background
+  if style.background then
+    vim.cmd(string.format("highlight NormalFloat guibg=%s", style.background))
+    -- Aplicar background também ao border e prompt se não tiverem cores específicas
+    if not style.border_color then
+      vim.cmd(string.format("highlight FloatBorder guibg=%s", style.background))
+    end
+    if not style.color_symbol then
+      vim.cmd(string.format("highlight PromptSymbol guibg=%s", style.background))
+    end
+  else
+    vim.cmd([[
+      if !hlexists('NormalFloat')
+        highlight default link NormalFloat Pmenu
+      endif
+      if !hlexists('Pmenu')
+        highlight default link NormalFloat Normal
+      endif
+    ]])
+  end
+
+  -- BufferPickerIndicator (sempre com fallback)
+  vim.cmd([[
+    if !hlexists('BufferPickerIndicator')
+      highlight default BufferPickerIndicator guifg=#aeaed1 guibg=NONE
+    endif
+  ]])
+end
+
+
+function M.select_file(file_path)
+  if not file_path or file_path == "" then
+    vim.notify("File path is empty", vim.log.levels.WARN)
+    return false
+  end
+
+  -- Verificar se o arquivo existe
+  if vim.fn.filereadable(file_path) == 0 then
+    vim.notify("File does not exist: " .. file_path, vim.log.levels.ERROR)
+    return false
+  end
+
+  -- Abrir o arquivo
+  vim.cmd("edit " .. vim.fn.fnameescape(file_path))
+  return true
+end
+
+
+
+
+function M.pick_files_system()
 
   ---- Setting window configs ------------------------------------------------------------
-  local num_lines = 0
-  if buffers then
-    for i, _ in ipairs(buffers) do
-      num_lines = i
-    end
-  end
+  local MAX_DISPLAY = 999
+  local displayed_count = 0
 
-  -- Floating Window Settings - BOTTOM LEFT CORNER
-  local width = 75
-  -- local height = 20
-  local height = math.min(22, num_lines + 15) -- Dynamic height based on number of buffers
-  local row = vim.o.lines - height - 1       -- close to 40 lines
+  local style = M.config.style
+  local query = {}
+  local buffers = M.get_search_mode(query)
+  local search_term
+  local selected_index = 1
+  local filtered_buffers = buffers
+  local num_lines = count_line_buffers(buffers)
+
+  local width = 70
+  local height = math.min(22, num_lines + 15)
+  local row = vim.o.lines - height - 1
   local col = 0
 
   local buf = vim.api.nvim_create_buf(false, true)
@@ -808,64 +980,350 @@ function M.show_buffers_in_float()
     },
     title_pos = "left",
     footer = {
-      { " Buffers ", "FloatFooter" }
+      { " FILES ", "FloatFooter" }
     },
     footer_pos = "left",
   })
 
-
-  --- Configure the buffer option with some option that we could see in ':set all'
-  ---
   vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
   vim.api.nvim_set_option_value('filetype', 'bufferlist', { buf = buf })
-  ---
-  vim.api.nvim_set_option_value('number', true, { win = win })
-  vim.api.nvim_set_option_value('numberwidth', 1, { win = win })
+  vim.api.nvim_set_option_value('number', false, { win = win })
   vim.api.nvim_set_option_value('cursorline', true, { win = win })
   vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
-  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:FloatCursorLine', { win = win })
+  vim.api.nvim_set_option_value('winhighlight', 'CursorLine:PmenuSel', { win = win })
+
+  M.setting_config_style(style)
+
+  local indicator_ns = vim.api.nvim_create_namespace("buffer_picker_indicator")
+
+  -----------------------------------------------------------------------------------------------------
+
+  -- Function update_display with truncate
+  local function update_display()
+    --[[ The function : nvim_buf_set_option is Deprecated. Use |nvim_set_option_value()| instead. ]]
+    -- vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+    --
+    -- Now we allow the buffer to be modified
+    vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
+
+    -- Update the title
+    vim.api.nvim_win_set_config(win, {
+      title = {
+        { style.prompt_symbol,                              "PromptSymbol" },
+        { " " .. table.concat(query) .. style.input_cursor, "InputText" }
+      },
+      footer = { { " FILES " } }
+    })
+
+    -- Based on the content on table query we filter the table 'buffers'
+    -- Creating a new table 'filtered_buffers' tha are displyed later according to what we type
+    if #query > 0 then
+      search_term = table.concat(query):lower()
+      filtered_buffers = {}
+      for _, buf_item in ipairs(buffers) do
+        if buf_item.name:lower():find(search_term, 1, true) or
+            buf_item.path:lower():find(search_term, 1, true) then
+          table.insert(filtered_buffers, buf_item)
+        end
+      end
+    else
+      filtered_buffers = buffers -- Show all buffers when no search term
+    end
+    -- selected_index = math.max(1, math.min(selected_index, #filtered_buffers))
+
+    local display_buffers = {}
+    displayed_count = 0
+
+    for i, buf_item in ipairs(filtered_buffers) do
+      if i <= MAX_DISPLAY then
+        table.insert(display_buffers, buf_item)
+        displayed_count = displayed_count + 1
+      else
+        break
+      end
+    end
+
+    -- Updates content with truncated paths
+    --
+    -- With the 'filtered_buffers' that we get, base on the query we fill 'lines' table with
+    -- the Itens from 'filtered_buffers', but now with a truncated path tha fits on the window and a status
+    local lines = {}
+    -- In first interaction 'filtered_buffers' is a table with all buffers related to the current_path
+    for _, buf_item in ipairs(display_buffers) do
+      local status = buf_item.is_open and "" or ""
+      -- Uses truncate_path to ensure the file name is visible
+      local truncated_path = truncate_path(buf_item.path, 69) -- Fit within window width
+
+      local indicator = "  " -- Espaços reservados
+      local line = string.format("%s%s%s", indicator, status, truncated_path)
+      table.insert(lines, line)
+    end
+
+    local total_count = #filtered_buffers
+    if total_count > MAX_DISPLAY then
+      table.insert(lines, string.format("... and %d more buffers (type to filter)", total_count - MAX_DISPLAY))
+    end
+
+    -- Relace the lines on the buffer with the lines of an array
+    -- So with that we change the buffer displyed on the window, to show the buffes in table 'lines'
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    -- vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+    --[[ The function : nvim_buf_set_option is Deprecated. Use |nvim_set_option_value()| instead. ]]
+    -- vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+
+    -- Lock the buffer edition for safety
+    vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+
+    vim.api.nvim_buf_clear_namespace(buf, indicator_ns, 0, -1)
+
+    if #display_buffers > 0 and selected_index <= #display_buffers then
+      vim.api.nvim_buf_set_extmark(
+        buf,
+        indicator_ns,
+        selected_index - 1,
+        0,
+        {
+          virt_text = { { style.virt_text, "BufferPickerIndicator" } },
+          virt_text_pos = "overlay",
+          virt_text_win_col = 0,
+          priority = 10000,
+          strict = false,
+        }
+      )
+
+      -- for i, _ in ipairs(display_buffers) do
+      --   if i ~= selected_index then
+      --     vim.api.nvim_buf_set_extmark(
+      --       buf,
+      --       indicator_ns,
+      --       i - 1,
+      --       0,
+      --       {
+      --         virt_text = { { " ", "Normal" } }, -- Espaço invisível
+      --         virt_text_pos = "overlay",
+      --         virt_text_win_col = 0,
+      --         priority = 10000,
+      --         strict = false,
+      --       }
+      --     )
+      --   end
+      -- end
+    end
 
 
-  if style.border_color then
-    vim.cmd(string.format("highlight FloatBorder guifg=%s", style.border_color))
-    vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.border_color))
-  end
-  if style.color_symbol then
-    vim.cmd(string.format("highlight PromptSymbol guifg=%s", style.color_symbol))
-  end
-  if style.cursor_line then
-    vim.cmd(string.format("highlight FloatCursorLine guibg=%s", style.cursor_line))
-  end
-  if style.match_highlight then
-    vim.cmd(string.format("highlight PickBufferMatch guifg=%s gui=bold", style.match_highlight))
-  end
-  if style.input_text then
-    vim.cmd(string.format("highlight InputText guifg=%s", style.input_text))
-  end
-  if style.title_color then
-    vim.cmd(string.format("highlight FloatTitle guifg=%s", style.title_color))
-    vim.cmd(string.format("highlight FloatFooter guifg=%s", style.title_color))
-  end
-  if style.input_background then
-    vim.cmd(string.format("highlight InputText guibg=%s", style.input_background))
-  end
-  if style.background then
-    vim.cmd(string.format("highlight NormalFloat guibg=%s", style.background))
-    vim.cmd(string.format("highlight FloatBorder guibg=%s", style.background))
-    vim.cmd(string.format("highlight PromptSymbol guibg=%s", style.background))
+    if #query > 0 then
+      local search_lower = table.concat(query):lower()
+
+      --- We go through each of the lines in filtered_buffers
+      for i, _ in ipairs(display_buffers) do
+        -- for i, buf_item in ipairs(filtered_buffers) do
+        local line_text = lines[i]
+        local line_lower = line_text:lower()
+
+        local start_pos = 1
+        while true do
+          --[[
+          'string.find()' Return two values when find some match, we define 'match_start' that
+          will receive the initial position(related to the string index where the match begins)
+          'match_end' will receive the last position(related to the string index where the match finish)
+          ]]
+          local match_start, match_end = line_lower:find(search_lower, start_pos, true)
+          if not match_start then break end
+          --[[ the function : nvim_buf_add_highlightUse is Deprecated. Use |vim.hl.range()| or |nvim_buf_set_extmark()| ]]
+          -- vim.api.nvim_buf_add_highlight(
+          --   buf,
+          --   ns_id,
+          --   'PickBufferMatch',
+          --   i - 1,
+          --   match_start - 1,
+          --   match_end
+          -- )
+          --- Apply to some range of text related to the buffer, the highlight group
+          vim.hl.range(
+            buf,
+            ns_id,
+            'PickBufferMatch',
+            --- We define the lines where we want to add the highlight groups,
+            --- because since we are adding them to a buffer, we need to specify
+            --- on which line and in which part of its text the group should be applied.
+            --- That’s why we use 'i - 1'. The '-1' is because the Vim API is 0-based.
+            { i - 1, match_start - 1 },
+            { i - 1, match_end },
+            { inclusive = false }
+          )
+          --- That line which update 'start_pos', crucial because when we find the first match
+          --- and we add the highlight group to that match(range text) we set on start_pos the position
+          --- where we stop to search for match line_lower. So it make us come back to the string position
+          --- which we can see 'match_end + 1' and continue searches for matchs in 'line_lower' string.
+          start_pos = match_end + 1
+        end
+      end
+    end
+
+    -- Move the cursor to the selected item
+    vim.api.nvim_win_set_cursor(win, { selected_index, 0 })
+    -- Refresh the buffer or window with all the new settings like selected_index highlight and etc...
+    vim.cmd("redraw")
   end
   -----------------------------------------------------------------------------------------------------
 
-  -- Set a keymap that trigger the function ':lua require("pick-buffer")._select_current_buffer()<CR>'
-  -- vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>',
-  -- 	':lua require("pick-buffer")._select_current_buffer()<CR>',
-  -- 	{ noremap = true, silent = true })
+  -- Call update_display after we create it
+  update_display()
+
+  -- Main Loop
+  --
+  -- That main loop after we open the float window and we call tha 'update_display'
+  -- function above, we starts a loop which get each input sent by our keyboard except
+  -- the keybindings which are defined bellow
+  while true do
+    local ok, char_str = pcall(vim.fn.getcharstr)
+    if not ok then break end
+    -- Detect Alt+Number (special keys)
+    -- That logical block will catch every char Array that are sent by 'vim.fn.getcharstr'
+    -- and process each BYTE seatches for matchs that represente the keybindings ALT + [1-9]
+    -- and if that matchs happen we catch the number which comes with and open the buffer with that number
+    if #char_str == 4 then
+      local byte1, byte2, byte3, byte4 = char_str:byte(1), char_str:byte(2), char_str:byte(3), char_str:byte(4)
+      -- Exactly default: <80><fc>^H[1-9]
+      if byte1 == 128 and byte2 == 252 and byte3 == 8 and byte4 >= 49 and byte4 <= 57 then
+        local ctrl_number = byte4 - 48 -- Convert ASCII to number (49->1, 50->2, etc.)
+        vim.schedule(function()
+          if ctrl_number <= #filtered_buffers then
+            M.select_file(filtered_buffers[ctrl_number].path)
+          end
+        end)
+        break
+      end
+    end
+
+    -- Detect backspaces (all variants)
+    local is_backspace = char_str == '\8' or char_str == '\127' or char_str:find("kb") or char_str:find("<80>")
+    -- Check keys by their string representation
+    if char_str == '\12' then -- Ctrl+l (form feed)
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M.select_file(filtered_buffers[selected_index].path)
+        end
+      end)
+      break
+    elseif char_str == 'O' then
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M.select_file(filtered_buffers[selected_index].path)
+        end
+      end)
+      break
+    elseif char_str == '#' then
+      update_display()
+    elseif char_str == 'J' then -- J
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == 'K' then -- K
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\10' then -- Ctrl+j (line feed)
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == '\11' then -- Ctrl+k (vertical tab)
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\14' then -- Ctrl+n (shift out)
+      selected_index = math.min(#filtered_buffers, selected_index + 1)
+      update_display()
+    elseif char_str == '\16' then -- Ctrl+p (data link escape)
+      selected_index = math.max(1, selected_index - 1)
+      update_display()
+    elseif char_str == '\9' then -- TAB
+      selected_index = (selected_index % #filtered_buffers) + 1
+      update_display()
+      -- elseif tonumber(char_str) then -- Numbers 0-9
+      --   local num = tonumber(char_str)
+      --   if num <= #filtered_buffers then
+      --     selected_index = num
+      --     update_display()
+      --   end
+    elseif char_str == '\27' then -- Escape
+      break
+    elseif char_str == '\13' then -- Enter
+      vim.schedule(function()
+        if #filtered_buffers > 0 then
+          M.select_file(filtered_buffers[selected_index].path)
+        end
+      end)
+      break
+    elseif is_backspace then
+      if #query > 0 then
+        table.remove(query)
+        selected_index = 1
+        update_display()
+      end
+      -- Search characters i.e. that character typed only will be add to 'query'
+      -- if the characters size was equas to 1 and if it was a character that is NOT a white space
+    elseif #char_str == 1 and char_str:match('%S') then
+      table.insert(query, char_str)
+      selected_index = 1
+      update_display()
+    end
+  end
+  --- When some action like entry on a buffer was called by some keybindings the main loop ends and
+  --- we execute the command to close the window
+  vim.api.nvim_win_close(win, true)
+  M._float_win = win
+end
+
+--- Lounch a window tha shows all buffers related to the current_path
+function M.pick_buffer_cache()
+  ---- Setting window configs ------------------------------------------------------------
+  local style = M.config.style
+  local query = {}
+  local buffers = get_buffers_with_numbers()
+  local search_term
+  local selected_index = 1
+  local filtered_buffers = buffers
+  local num_lines = count_line_buffers(buffers)
+
+
+  local width = 75
+  local height = math.min(22, num_lines + 15) -- Dynamic height based on number of buffers
+  local row = vim.o.lines - height - 1        -- close to 40 lines
+  local col = 0
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    style = 'minimal',
+    border = 'rounded',
+    title = {
+      { style.prompt_symbol,                              "PromptSymbol" },
+      { " " .. table.concat(query) .. style.input_cursor, "InputText" }
+    },
+    title_pos = "left",
+    footer = {
+      { " Buffers ", "FloatFooter" },
+      { "OK",        "FloatFooter" }
+    },
+    footer_pos = "left",
+  })
+
+  M.config_window_buffer(win, buf)
+  M.setting_config_style(style)
+
+  -----------------------------------------------------------------------------------------------------
 
 
   ---- Function that deal with text input -------------------------------------------------------------
 
-  -- Function update_display
+  -- Function update_display with truncate
   local function update_display()
+    --[[ The function : nvim_buf_set_option is Deprecated. Use |nvim_set_option_value()| instead. ]]
+    -- vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+    --
+    -- Now we allow the buffer to be modified
     vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
 
     -- Update the title
@@ -897,6 +1355,8 @@ function M.show_buffers_in_float()
         end
       end
     else
+      -- Based on the content on table query we filter the table 'buffers'
+      -- Creating a new table 'filtered_buffers' tha are displyed later according to what we type
       if #query > 0 then
         search_term = table.concat(query):lower()
         filtered_buffers = {}
@@ -922,29 +1382,93 @@ function M.show_buffers_in_float()
       table.insert(lines, line)
     end
 
+    -- Clears previous highlights
+    --
+    -- • {buffer}      Buffer id, or 0 for current buffer
+    -- • {ns_id}       Namespace to clear, or -1 to clear all namespaces.
+    -- • {line_start}  Start of range of lines to clear
+    -- • {line_end}    End of range of lines to clear (exclusive) or -1 to
+    --                 clear to end of buffer.
+    --
+    vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+
+    -- Updates content with truncated paths
+    --
+    -- With the 'filtered_buffers' that we get, base on the query we fill 'lines' table with
+    -- the Itens from 'filtered_buffers', but now with a truncated path tha fits on the window and a status
+    local lines = {}
+    -- In first interaction 'filtered_buffers' is a table with all buffers related to the current_path
+    for _, buf_item in ipairs(filtered_buffers) do
+      -- local status = buf_item.is_open and " " or "🖹"
+      local status = buf_item.is_open and "🖹" or "🖹"
+      -- Uses truncate_path to ensure the file name is visible
+      local truncated_path = truncate_path(buf_item.path, 69) -- Fit within window width
+
+      -- local line = string.format("%d %s%s", buf_item.number, status, truncated_path)
+      -- local line = string.format("%s %-3d %s", status, buf_item.number, truncated_path)
+      local line = string.format("%s%s", status, truncated_path)
+      table.insert(lines, line)
+    end
+
+    -- Relace the lines on the buffer with the lines of an array
+    -- So with that we change the buffer displyed on the window, to show the buffes in table 'lines'
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    -- vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+    --[[ The function : nvim_buf_set_option is Deprecated. Use |nvim_set_option_value()| instead. ]]
+    -- vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+
+    -- Lock the buffer edition for safety
     vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+
+    -- Apply highlight to matches
+    if #query > 0 then
+      local search_lower = table.concat(query):lower()
 
     -- Apply highlight to matches
     if #query > 0 then
       local search_lower = table.concat(query):lower()
       --- We go through each of the lines in filtered_buffers
       for i, _ in ipairs(filtered_buffers) do
+        -- for i, buf_item in ipairs(filtered_buffers) do
         local line_text = lines[i]
         local line_lower = line_text:lower()
 
         local start_pos = 1
         while true do
+          --[[
+          'string.find()' Return two values when find some match, we define 'match_start' that
+          will receive the initial position(related to the string index where the match begins)
+          'match_end' will receive the last position(related to the string index where the match finish)
+          ]]
           local match_start, match_end = line_lower:find(search_lower, start_pos, true)
           if not match_start then break end
+          --[[ the function : nvim_buf_add_highlightUse is Deprecated. Use |vim.hl.range()| or |nvim_buf_set_extmark()| ]]
+          -- vim.api.nvim_buf_add_highlight(
+          --   buf,
+          --   ns_id,
+          --   'PickBufferMatch',
+          --   i - 1,
+          --   match_start - 1,
+          --   match_end
+          -- )
+          --- Apply to some range of text related to the buffer, the highlight group
           vim.hl.range(
             buf,
             ns_id,
             'PickBufferMatch',
+            --- We define the lines where we want to add the highlight groups,
+            --- because since we are adding them to a buffer, we need to specify
+            --- on which line and in which part of its text the group should be applied.
+            --- That’s why we use 'i - 1'. The '-1' is because the Vim API is 0-based.
             { i - 1, match_start - 1 },
             { i - 1, match_end },
             { inclusive = false }
           )
+          --- That line which update 'start_pos', crucial because when we find the first match
+          --- and we add the highlight group to that match(range text) we set on start_pos the position
+          --- where we stop to search for match line_lower. So it make us come back to the string position
+          --- which we can see 'match_end + 1' and continue searches for matchs in 'line_lower' string.
           start_pos = match_end + 1
         end
       end
@@ -1038,6 +1562,16 @@ function M.show_buffers_in_float()
         end
       end)
       break
+    elseif char_str == '#' then
+      -- update_display()
+
+      vim.api.nvim_win_close(win, true)
+      vim.schedule(function()
+        M.pick_files_system()
+      end)
+      return
+
+      -- break
     elseif char_str == 'J' then -- J
       selected_index = math.min(#filtered_buffers, selected_index + 1)
       update_display()
@@ -1246,6 +1780,11 @@ function M.pick_last()
   end
 end
 
+function M.add_it_to_cache()
+  local buf = vim.api.nvim_get_current_buf()
+  add_buffer_to_cache(buf)
+end
+
 ---------------------------------------------------------------------------------------------------------
 
 
@@ -1254,13 +1793,18 @@ end
 function M.setup_keymaps()
   local keymaps = M.config.keymaps
 
-  -- vim.keymap.set('n', '<leader>bf', M.show_buffers_in_float, { desc = 'Show buffer in a float window' })
-
+  vim.keymap.set("n", '<leader>a', function()
+    M.add_it_to_cache()
+    vim.notify("addind that file to buffer_cache...", vim.log.levels.WARN)
+  end, { desc = "Add file to buffer_cache" })
   vim.keymap.set("n", keymaps.pick_previous, M.pick_last, { desc = "Jump to the previous buffer" })
   vim.keymap.set("n", keymaps.list_buffers, M.list_buffers, { desc = "List buffers (with cache)" })
   vim.keymap.set("n", keymaps.move_backward, move_buffer_backward, { desc = "Move buffer backward in list" })
   vim.keymap.set("n", keymaps.move_forward, move_buffer_forward, { desc = "Move buffer forward in list" })
-  vim.keymap.set('n', keymaps.buffer_picker, ':Mag ', { desc = 'Open buffer by number' })
+  vim.keymap.set('n', keymaps.buffer_picker, ':Mag <CR>', { desc = 'Open buffer by number' })
+  vim.keymap.set("n", keymaps.file_picker, function()
+    M.pick_files_system()
+  end, { desc = 'Open file system_search in window' })
 
   vim.keymap.set("n", keymaps.close_buffer, function()
     if is_telescope_window() then
@@ -1274,8 +1818,6 @@ function M.setup_keymaps()
     { desc = "Clear buffers of the current path (except the current one)" })
   vim.keymap.set("n", keymaps.remove_last, remove_last_buffer_from_cache, { desc = "Remove last buffer from cache" })
   vim.keymap.set("n", keymaps.clear_cache, clear_cache, { desc = "Clear all buffer cache" })
-
-
 
 
   -- Version that allows closing information tab when existing.
@@ -1356,13 +1898,10 @@ end
 -- Main Setup
 function M.setup(user_config)
   local merged_config = vim.tbl_deep_extend("force", default_config, user_config or {})
-
   if user_config and user_config.opt_feature then
     merged_config.opt_feature = vim.tbl_deep_extend("force", default_config.opt_feature, user_config.opt_feature)
   end
   M.config = merged_config
-
-  -- M.config = vim.tbl_deep_extend("force", default_config, user_config or {})
 
   setup_cache()
   M.setup_keymaps()
