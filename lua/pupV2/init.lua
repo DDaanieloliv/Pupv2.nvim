@@ -1370,18 +1370,8 @@ function M.pick_buffer_cache()
         filtered_buffers = buffers -- Show all buffers when no search term
       end
     end
+
     vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
-
-    -- Updates content with truncated paths
-    local lines = {}
-    for _, buf_item in ipairs(filtered_buffers) do
-      local status = buf_item.is_open and "🖹" or "🖹"
-      local truncated_path = truncate_path(buf_item.path, 69) -- Fit within window width
-
-      local line = string.format("%s%s", status, truncated_path)
-      table.insert(lines, line)
-    end
-
     -- Clears previous highlights
     --
     -- • {buffer}      Buffer id, or 0 for current buffer
@@ -1421,9 +1411,6 @@ function M.pick_buffer_cache()
     -- Lock the buffer edition for safety
     vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
 
-    -- Apply highlight to matches
-    if #query > 0 then
-      local search_lower = table.concat(query):lower()
 
     -- Apply highlight to matches
     if #query > 0 then
