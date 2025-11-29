@@ -3,7 +3,8 @@
 A personal plugin that helps me switch between buffers in Neovim and handle them per working directory.
 Whith a file search builtin ripgrep powered.
 
-<img width="1903" height="1033" alt="image" src="https://github.com/user-attachments/assets/0ca7a31b-34a7-407d-b68b-4159eab72f8c" />
+https://github.com/user-attachments/assets/bdd56b2b-2d5d-4578-8922-e381da5cded8
+
 
 
 ## Features
