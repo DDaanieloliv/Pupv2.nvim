@@ -723,9 +723,6 @@ function M.buffer_completion(arg_lead, _, _)
   return completions
 end
 
-
-
-
 --- Based on the @param, we check the table buffers
 --- (table<integer, { number: integer, name: string, path: string, is_open: boolean }>)
 --- and if any buffer matches, we switch to it.
@@ -791,8 +788,6 @@ function M.buffer_command(args)
   end
 end
 
-
-
 --- @param file_path string
 --- @return boolean return true if that action is succeeds
 ---
@@ -812,9 +807,6 @@ function M.select_file(file_path)
   vim.cmd("edit " .. vim.fn.fnameescape(file_path))
   return true
 end
-
-
-
 
 --- @return table<integer, { number: integer, name: string, path: string, is_open: string }>
 --- This table contains all buffers in cache that match whit the query_stack(M.current_query)
@@ -838,9 +830,6 @@ function M.updated_buffers_by_query()
   return filtered_buffers
 end
 
-
-
-
 --- @param win integer Window (ID)
 --- @param buf integer Buffer (ID)
 --- Define each setting to the respective window and buffer
@@ -855,9 +844,6 @@ function M.config_window_buffer(win, buf)
   vim.api.nvim_set_option_value('cursorlineopt', 'line', { win = win })
   vim.api.nvim_set_option_value('winhighlight', 'CursorLine:PmenuSel', { win = win })
 end
-
-
-
 
 --- @param style table
 --- Defines the highlights to each namespace, using the defaults if some colors
@@ -975,15 +961,14 @@ function M.setting_config_style(style)
   ]])
 end
 
-
-
-
-
-
-
 --- @return table<integer, { number: integer, name: string, path: string, is_open: string}>
 ---
 function M.grep_files()
+  if M.file_system_cache ~= nil then
+    local files = M.file_system_cache
+    return files
+  end
+
   local path = vim.fn.getcwd()
 
   local grep_config = M.config.grep_defaults .. "/.rgignore"
@@ -1020,6 +1005,75 @@ end
 
 
 
+
+local path = vim.fn.getcwd()
+local grep_config = M.config.grep_defaults .. "/.rgignore"
+-- vim.system({ 'rg', '--files', '--ignore-file', grep_config, path }, {
+--   text = true
+-- }, function(result)
+--
+--   local files = {}
+--   local index = 1
+--   for line in result.stdout:gmatch("[^\r\n]+") do
+--     table.insert(files, {
+--       number = index,
+--       name = line:match("([^/]+)$"),
+--       path = line,
+--       is_open = nil
+--     })
+--     index = index + 1
+--   end
+--   -- return files
+--
+--   vim.schedule(function()
+--       M.file_system_cache = files
+--   end)
+-- end)
+local function find_files_promise()
+  return function(resolve, reject)
+    local job = vim.system({ 'rg', '--files', '--ignore-file', grep_config, path }, {
+      text = true
+    }, function(result)
+      vim.schedule(function()
+        if result.code == 0 then
+          local files = {}
+          local index = 1
+          for line in result.stdout:gmatch("[^\r\n]+") do
+            table.insert(files, {
+              number = index,
+              name = line:match("([^/]+)$"),
+              path = line,
+              is_open =  nil
+            })
+            index = index + 1
+          end
+          resolve(files)
+        else
+          reject("Falha: " .. (result.stderr or "erro desconhecido"))
+        end
+      end)
+    end)
+  end
+end
+
+local promise = find_files_promise()
+promise(function(files)
+  M.file_system_cache = files
+  vim.notify("Ready: " .. #files .. " files...", vim.log.levels.WARN)
+end, function(erro)
+  vim.notify("Error: " .. erro, vim.log.levels.WARN)
+end)
+
+M.file_system_cache = nil
+
+
+
+
+
+
+
+
+
 --- Open a float window hith all files in the current path
 ---
 function M.pick_files_system()
@@ -1028,7 +1082,9 @@ function M.pick_files_system()
 
   local style = M.config.style
   local query = {}
-  local buffers = M.grep_files() -- should be async
+
+  -- should be async
+  local buffers = M.grep_files()
   local search_term
   local selected_index = 1
   local filtered_buffers = buffers
@@ -1271,6 +1327,10 @@ function M.pick_files_system()
       if #query > 0 then
         table.remove(query)
         selected_index = 1
+        update_display()
+      elseif #query == 0 then
+        M.file_system_cache = nil
+        buffers = M.grep_files()
         update_display()
       end
       -- Search characters i.e. that character typed only will be add to 'query'
