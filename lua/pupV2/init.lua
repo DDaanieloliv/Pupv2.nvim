@@ -637,7 +637,8 @@ local function count_line_buffers(buffers)
 end
 
 
-
+--- @return boolean
+---
 local function save_rg_config()
   local grep_defaults_dir = M.config.grep_defaults
   local rgignore_file = grep_defaults_dir .. "/.rgignore"
@@ -656,6 +657,8 @@ local function save_rg_config()
 end
 
 
+--- @return string
+---
 local function setup_rg_defaults()
   local grep_defaults_dir = M.config.grep_defaults
 
@@ -1032,6 +1035,8 @@ end
 M.file_system_cache = nil
 M.filesys_allowed = true
 
+--- @return function
+---
 local function find_files_promise()
   return function(resolve, reject)
     local path = vim.fn.getcwd()
@@ -1062,6 +1067,9 @@ local function find_files_promise()
 end
 
 local promise = find_files_promise()
+
+--- @param files any
+---
 promise(function(files)
   M.file_system_cache = files
   -- vim.notify("Ready: " .. #files .. " files...", vim.log.levels.WARN)
