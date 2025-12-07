@@ -13,6 +13,7 @@ local M = {}
 local default_config = {
   enabled = true,
   cache_dir = vim.fn.stdpath("data") .. "/buffer_cache",
+  grep_defaults = vim.fn.stdpath("data") .. "/buffer_cache",
   keymaps = {
     list_buffers = "<leader>ls",
     move_backward = "<leader>[",
@@ -192,6 +193,12 @@ end
 
 
 
+
+
+
+
+
+
 --- Load the cache file
 --- @return table<string, { name: string, path: string }[]> | {}
 ---
@@ -329,39 +336,8 @@ local function remove_buffer_from_cache(path, force)
 end
 
 
---- @param query table<string>
---- @return table<integer, { number: integer, name: string, path: string, is_open: string}>
----
-function M.grep_files(query)
-  local path = vim.fn.getcwd()
-  local search_string = tostring(table.concat(query))
-  local command = string.format('rg --files %s | rg %s', path, search_string)
 
-  if search_string:len() == 0 then
-    command = string.format('rg --files %s', path)
-  end
 
-  local handle = io.popen(command)
-  if not handle then
-    vim.notify("The grep_files command faild", vim.log.levels.WARN)
-    return {}
-  end
-  local result = handle:read("*a")
-  handle:close()
-
-  local files = {}
-  local index = 1
-  for line in result:gmatch("[^\r\n]+") do
-    table.insert(files, {
-      number = index,
-      name = line:match("([^/]+)$"),
-      path = line,
-      is_open = find_buffer_by_path(line) ~= nil
-    })
-    index = index + 1
-  end
-  return files
-end
 
 --- Loads cache_data, looks for last_buffer to remove it, unless it is the current buffer
 ---
@@ -660,6 +636,54 @@ local function count_line_buffers(buffers)
   return num_lines
 end
 
+
+--- @return boolean
+---
+local function save_rg_config()
+  local grep_defaults_dir = M.config.grep_defaults
+  local rgignore_file = grep_defaults_dir .. "/.rgignore"
+
+  local file = io.open(rgignore_file, "w")
+  if file then
+    file:write("!.config\n")
+    file:write("!.local\n")
+    file:write("!.shell\n")
+    file:close()
+    return true
+  else
+    vim.notify("Failed to open rg_config file: " .. rgignore_file, vim.log.levels.ERROR)
+    return false
+  end
+end
+
+
+--- @return string
+---
+local function setup_rg_defaults()
+  local grep_defaults_dir = M.config.grep_defaults
+
+  if vim.fn.isdirectory(grep_defaults_dir) == 0 then
+    vim.fn.mkdir(grep_defaults_dir, "p")
+  end
+
+  local rgignore_file = grep_defaults_dir .. "/.rgignore"
+
+  if vim.fn.filereadable(rgignore_file) == 0 then
+    local file = io.open(rgignore_file, "w")
+    if file then
+      file:write("!.config\n")
+      file:write("!.local\n")
+      file:write("!.shell\n")
+      file:close()
+      vim.notify("Created rgignore file: " .. rgignore_file, vim.log.levels.INFO)
+    else
+      vim.notify("Failed to create rgignore file: " .. rgignore_file, vim.log.levels.ERROR)
+    end
+  end
+
+  return rgignore_file
+end
+
 ---------------------------------------------------------------------------------------------------------
 
 
@@ -765,6 +789,26 @@ function M.buffer_command(args)
   else
     vim.notify("Buffer not found: " .. target, vim.log.levels.WARN)
   end
+end
+
+--- @param file_path string
+--- @return boolean return true if that action is succeeds
+---
+function M.select_file(file_path)
+  if not file_path or file_path == "" then
+    vim.notify("File path is empty", vim.log.levels.WARN)
+    return false
+  end
+
+  -- Verify if the file exists
+  if vim.fn.filereadable(file_path) == 0 then
+    vim.notify("File does not exist: " .. file_path, vim.log.levels.ERROR)
+    return false
+  end
+
+  -- Open the file
+  vim.cmd("edit " .. vim.fn.fnameescape(file_path))
+  return true
 end
 
 --- @return table<integer, { number: integer, name: string, path: string, is_open: string }>
@@ -920,24 +964,127 @@ function M.setting_config_style(style)
   ]])
 end
 
---- @param file_path string
---- @return boolean return true if that action is succeeds
+--- grep all files in the current path
+--- @return table<integer, { number: integer, name: string, path: string, is_open: string}>
 ---
-function M.select_file(file_path)
-  if not file_path or file_path == "" then
-    vim.notify("File path is empty", vim.log.levels.WARN)
-    return false
+function M.grep_files()
+  if M.filesys_allowed then
+    local files = M.file_system_cache
+    return files
   end
 
-  -- Verify if the file exists
-  if vim.fn.filereadable(file_path) == 0 then
-    vim.notify("File does not exist: " .. file_path, vim.log.levels.ERROR)
-    return false
+  M.filesys_allowed = not M.filesys_allowed
+
+  local path = vim.fn.getcwd()
+  local grep_config = M.config.grep_defaults .. "/.rgignore"
+
+  if vim.fn.filereadable(grep_config) == 0 then
+    vim.notify("rgignore not found, creating...", vim.log.levels.INFO)
+    save_rg_config()
   end
 
-  -- Open the file
-  vim.cmd("edit " .. vim.fn.fnameescape(file_path))
-  return true
+  local command = string.format('rg --files --ignore-file %s %s', grep_config, path)
+
+  local handle = io.popen(command)
+  if not handle then
+    vim.notify("The grep_files command faild", vim.log.levels.WARN)
+    return {}
+  end
+  local result = handle:read("*a")
+  handle:close()
+
+  local files = {}
+  local index = 1
+  for line in result:gmatch("[^\r\n]+") do
+    table.insert(files, {
+      number = index,
+      name = line:match("([^/]+)$"),
+      path = line,
+      is_open = find_buffer_by_path(line) ~= nil
+    })
+    index = index + 1
+  end
+  return files
+end
+
+-- local path = vim.fn.getcwd()
+-- local grep_config = M.config.grep_defaults .. "/.rgignore"
+-- vim.system({ 'rg', '--files', '--ignore-file', grep_config, path }, {
+--   text = true
+-- }, function(result)
+--
+--   local files = {}
+--   local index = 1
+--   for line in result.stdout:gmatch("[^\r\n]+") do
+--     table.insert(files, {
+--       number = index,
+--       name = line:match("([^/]+)$"),
+--       path = line,
+--       is_open = nil
+--     })
+--     index = index + 1
+--   end
+--   -- return files
+--
+--   vim.schedule(function()
+--       M.file_system_cache = files
+--   end)
+-- end)
+
+
+M.file_system_cache = nil
+M.filesys_allowed = true
+
+--- @return function
+---
+local function find_files_promise()
+  return function(resolve, reject)
+    local path = vim.fn.getcwd()
+    local grep_config = M.config.grep_defaults .. "/.rgignore"
+    local job = vim.system({ 'rg', '--files', '--ignore-file', grep_config, path }, {
+      text = true
+    }, function(result)
+      vim.schedule(function()
+        if result.code == 0 then
+          local files = {}
+          local index = 1
+          for line in result.stdout:gmatch("[^\r\n]+") do
+            table.insert(files, {
+              number = index,
+              name = line:match("([^/]+)$"),
+              path = line,
+              is_open = nil
+            })
+            index = index + 1
+          end
+          resolve(files)
+        else
+          reject("Falha: " .. (result.stderr or "erro desconhecido"))
+        end
+      end)
+    end)
+  end
+end
+
+local promise = find_files_promise()
+
+--- @param files any
+---
+promise(function(files)
+  M.file_system_cache = files
+  -- vim.notify("Ready: " .. #files .. " files...", vim.log.levels.WARN)
+end, function(erro)
+  vim.notify("Error: " .. erro, vim.log.levels.WARN)
+end)
+
+function M.setup_cache_file_system()
+  local promise = find_files_promise()
+  promise(function(files)
+    M.file_system_cache = files
+    -- vim.notify("Ready: " .. #files .. " files...", vim.log.levels.WARN)
+  end, function(erro)
+    vim.notify("Error: " .. erro, vim.log.levels.WARN)
+  end)
 end
 
 --- Open a float window hith all files in the current path
@@ -948,7 +1095,9 @@ function M.pick_files_system()
 
   local style = M.config.style
   local query = {}
-  local buffers = M.grep_files(query)
+
+  -- should be async
+  local buffers = M.grep_files()
   local search_term
   local selected_index = 1
   local filtered_buffers = buffers
@@ -988,7 +1137,6 @@ function M.pick_files_system()
 
   M.setting_config_style(style)
   local indicator_ns = vim.api.nvim_create_namespace("buffer_picker_indicator")
-
 
   ---- Function that deal with text input -------------------------------------------------------------
   local function update_display()
@@ -1134,6 +1282,15 @@ function M.pick_files_system()
         end
       end)
       break
+    elseif char_str == '#' then
+      -- update_display()
+
+      vim.api.nvim_win_close(win, true)
+      vim.schedule(function()
+        M.pick_buffer_cache()
+      end)
+      return
+
       -- elseif char_str == 'O' then
       --   vim.schedule(function()
       --     if #filtered_buffers > 0 then
@@ -1183,6 +1340,11 @@ function M.pick_files_system()
       if #query > 0 then
         table.remove(query)
         selected_index = 1
+        update_display()
+      elseif #query == 0 then
+        M.filesys_allowed = not M.filesys_allowed
+        buffers = M.grep_files()
+        M.file_system_cache = buffers
         update_display()
       end
       -- Search characters i.e. that character typed only will be add to 'query'
@@ -1431,18 +1593,18 @@ function M.pick_buffer_cache()
       return
 
       -- break
-    -- elseif char_str == 'J' then -- J
-    --   selected_index = math.min(#filtered_buffers, selected_index + 1)
-    --   update_display()
-    -- elseif char_str == 'K' then -- K
-    --   selected_index = math.max(1, selected_index - 1)
-    --   update_display()
-    -- elseif char_str == '\10' then -- Ctrl+j (line feed)
-    --   selected_index = math.min(#filtered_buffers, selected_index + 1)
-    --   update_display()
-    -- elseif char_str == '\11' then -- Ctrl+k (vertical tab)
-    --   selected_index = math.max(1, selected_index - 1)
-    --   update_display()
+      -- elseif char_str == 'J' then -- J
+      --   selected_index = math.min(#filtered_buffers, selected_index + 1)
+      --   update_display()
+      -- elseif char_str == 'K' then -- K
+      --   selected_index = math.max(1, selected_index - 1)
+      --   update_display()
+      -- elseif char_str == '\10' then -- Ctrl+j (line feed)
+      --   selected_index = math.min(#filtered_buffers, selected_index + 1)
+      --   update_display()
+      -- elseif char_str == '\11' then -- Ctrl+k (vertical tab)
+      --   selected_index = math.max(1, selected_index - 1)
+      --   update_display()
     elseif char_str == '\14' then -- Ctrl+n (shift out)
       selected_index = math.min(#filtered_buffers, selected_index + 1)
       update_display()
@@ -1485,7 +1647,6 @@ function M.pick_buffer_cache()
         selected_index = 1
         update_display()
       elseif #query == 0 and M.config.opt_feature.buffers_trail then
-
         M.current_query = {}
         M.flag_confirmation = false
         update_display()
@@ -1527,8 +1688,6 @@ function M._select_current_buffer()
     M._select_buffer(tonumber(buffer_number))
   end
 end
-
-
 
 function M.list_buffers()
   local buffers = get_buffers_with_numbers()
@@ -1574,7 +1733,6 @@ function M.close_current_buffer()
   vim.notify(string.format("Buffer %s fechado!", buf_short_name), vim.log.levels.INFO)
 end
 
-
 ------ swap_to_last_buffer feature ----------------------------------------------------------------------
 
 --- Checks if the buffer param is a valid Buffer
@@ -1601,8 +1759,6 @@ function M.should_save_buffer(buf)
 
   return true
 end
-
-
 
 M.stack = {}
 --- Every time that we trigger the Event 'BufEnter' we get the current buffer which we Enter
@@ -1748,6 +1904,8 @@ function M.setup_autocmds()
         save_cache(cache_data)
       end
       M.stack = {}
+
+      M.setup_cache_file_system()
     end,
   })
 end
@@ -1767,7 +1925,10 @@ function M.setup(user_config)
   end
   M.config = merged_config
 
+  M.config.grep_defaults = vim.fn.expand(M.config.grep_defaults)
+
   setup_cache()
+  setup_rg_defaults()
   M.setup_keymaps()
   M.setup_autocmds()
 
