@@ -1896,6 +1896,8 @@ function M.setup_autocmds()
         save_cache(cache_data)
       end
       M.stack = {}
+
+      M.setup_cache_file_system()
     end,
   })
 end
