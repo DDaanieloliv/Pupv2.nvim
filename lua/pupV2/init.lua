@@ -961,16 +961,18 @@ function M.setting_config_style(style)
   ]])
 end
 
+--- grep all files in the current path
 --- @return table<integer, { number: integer, name: string, path: string, is_open: string}>
 ---
 function M.grep_files()
-  if M.file_system_cache ~= nil then
+  if M.filesys_allowed then
     local files = M.file_system_cache
     return files
   end
 
-  local path = vim.fn.getcwd()
+  M.filesys_allowed = not M.filesys_allowed
 
+  local path = vim.fn.getcwd()
   local grep_config = M.config.grep_defaults .. "/.rgignore"
 
   if vim.fn.filereadable(grep_config) == 0 then
@@ -1002,12 +1004,8 @@ function M.grep_files()
   return files
 end
 
-
-
-
-
-local path = vim.fn.getcwd()
-local grep_config = M.config.grep_defaults .. "/.rgignore"
+-- local path = vim.fn.getcwd()
+-- local grep_config = M.config.grep_defaults .. "/.rgignore"
 -- vim.system({ 'rg', '--files', '--ignore-file', grep_config, path }, {
 --   text = true
 -- }, function(result)
@@ -1029,8 +1027,15 @@ local grep_config = M.config.grep_defaults .. "/.rgignore"
 --       M.file_system_cache = files
 --   end)
 -- end)
+
+
+M.file_system_cache = nil
+M.filesys_allowed = true
+
 local function find_files_promise()
   return function(resolve, reject)
+    local path = vim.fn.getcwd()
+    local grep_config = M.config.grep_defaults .. "/.rgignore"
     local job = vim.system({ 'rg', '--files', '--ignore-file', grep_config, path }, {
       text = true
     }, function(result)
@@ -1043,7 +1048,7 @@ local function find_files_promise()
               number = index,
               name = line:match("([^/]+)$"),
               path = line,
-              is_open =  nil
+              is_open = nil
             })
             index = index + 1
           end
@@ -1059,20 +1064,20 @@ end
 local promise = find_files_promise()
 promise(function(files)
   M.file_system_cache = files
-  vim.notify("Ready: " .. #files .. " files...", vim.log.levels.WARN)
+  -- vim.notify("Ready: " .. #files .. " files...", vim.log.levels.WARN)
 end, function(erro)
   vim.notify("Error: " .. erro, vim.log.levels.WARN)
 end)
 
-M.file_system_cache = nil
-
-
-
-
-
-
-
-
+function M.setup_cache_file_system()
+  local promise = find_files_promise()
+  promise(function(files)
+    M.file_system_cache = files
+    -- vim.notify("Ready: " .. #files .. " files...", vim.log.levels.WARN)
+  end, function(erro)
+    vim.notify("Error: " .. erro, vim.log.levels.WARN)
+  end)
+end
 
 --- Open a float window hith all files in the current path
 ---
@@ -1329,8 +1334,9 @@ function M.pick_files_system()
         selected_index = 1
         update_display()
       elseif #query == 0 then
-        M.file_system_cache = nil
+        M.filesys_allowed = not M.filesys_allowed
         buffers = M.grep_files()
+        M.file_system_cache = buffers
         update_display()
       end
       -- Search characters i.e. that character typed only will be add to 'query'
