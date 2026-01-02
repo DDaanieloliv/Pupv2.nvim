@@ -1040,7 +1040,7 @@ end
 -- end)
 
 
-M.file_hide_allowed = true
+M.file_hide_allowed = false
 M.file_system_cache = nil
 M.filesys_allowed = true
 
