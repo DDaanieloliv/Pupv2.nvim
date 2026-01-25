@@ -615,10 +615,7 @@ local function truncate_path(path, max_width)
 
 	-- If the directory is too long, we truncate it with an ellipsis in the middle.
 	if #dir_path > available_width then
-		local part_size = math.floor(available_width / 2) - 1
-		local first_part = dir_path:sub(1, part_size)
-		local last_part = dir_path:sub(-part_size)
-		return first_part .. "…" .. last_part .. "/" .. filename
+		return "…" .. dir_path:sub(-available_width) .. "/" .. filename
 	end
 
 	return dir_path .. "/" .. filename
@@ -1496,7 +1493,7 @@ function M.pick_buffer_cache()
 			-- Uses truncate_path to ensure the file name is visible
 			local truncated_path = truncate_path(buf_item.path, 69) -- Fit within window width
 
-			local line = string.format("%s%s", status, truncated_path)
+			local line = string.format("%s %s", status, truncated_path)
 			table.insert(lines, line)
 		end
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
