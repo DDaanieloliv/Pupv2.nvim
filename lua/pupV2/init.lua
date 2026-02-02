@@ -1434,7 +1434,7 @@ function M.pick_buffer_cache()
 		col = col,
 		style = "minimal",
 		border = "rounded",
-		title = "> ",
+		title = ">  ",
 	})
 
 
