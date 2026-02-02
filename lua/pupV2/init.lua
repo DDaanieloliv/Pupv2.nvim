@@ -1393,304 +1393,246 @@ end
 
 --- Lounch a window tha shows all buffers related to the current_path
 function M.pick_buffer_cache()
-	---- Setting window configs ------------------------------------------------------------
 	local style = M.config.style
-	local query = {}
-	local buffers = get_buffers_with_numbers()
-	local search_term
-	local selected_index = 1
-	local filtered_buffers = buffers
-	local num_lines = count_line_buffers(buffers)
 
+	local buffers = get_buffers_with_numbers()
+	local filtered_buffers = buffers
+	local selected_index = 1
+	local query = ""
 
 	local width = 75
-	local height = math.min(22, num_lines + 15) -- Dynamic height based on number of buffers
-	local row = vim.o.lines - height - 1       -- close to 40 lines
+	local height = math.min(22, #buffers + 4)
+	local row = vim.o.lines - height - 1
 	local col = 0
 
+	-- viewport
+	local view_offset = 0
+	local max_visible = height - 1
+
+	local ns = vim.api.nvim_create_namespace("pick_buffers")
+
+	------------------------------------------------------------------
+	-- buffer (prompt)
+	------------------------------------------------------------------
 	local buf = vim.api.nvim_create_buf(false, true)
+
+	vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
+	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+	vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+	vim.api.nvim_set_option_value("modified", false, { buf = buf })
+
+	vim.fn.prompt_setprompt(buf, "")
+
+	------------------------------------------------------------------
+	-- window
+	------------------------------------------------------------------
 	local win = vim.api.nvim_open_win(buf, true, {
-		relative = 'editor',
+		relative = "editor",
 		width = width,
 		height = height,
 		row = row,
 		col = col,
-		style = 'minimal',
-		border = 'rounded',
-		title = {
-			{ style.prompt_symbol,                              "PromptSymbol" },
-			{ " " .. table.concat(query) .. style.input_cursor, "InputText" }
-		},
-		title_pos = "left",
-		footer = {
-			{ " Buffers ", "FloatFooter" },
-		},
-		footer_pos = "left",
+		style = "minimal",
+		border = "rounded",
+		title = "> ",
 	})
 
-	M.config_window_buffer(win, buf)
-	M.setting_config_style(style)
 
-	-----------------------------------------------------------------------------------------------------
+	local function update_title()
+		if vim.api.nvim_win_is_valid(win) then
+			vim.api.nvim_win_set_config(win, {
+				title = "> " .. query .. " ",
+			})
+		end
+	end
 
+	vim.cmd("startinsert")
 
-	---- Function that deal with text input -------------------------------------------------------------
+	------------------------------------------------------------------
+	-- render
+	------------------------------------------------------------------
 	local function update_display()
-		vim.api.nvim_set_option_value('modifiable', true, { buf = buf })
-
-		-- Update the title
-		vim.api.nvim_win_set_config(win, {
-			title = {
-				{ style.prompt_symbol,                              "PromptSymbol" },
-				{ " " .. table.concat(query) .. style.input_cursor, "InputText" }
-			},
-			footer = { { " BUFFERS " } }
-		})
-
-		if M.flag_confirmation and M.current_query ~= nil then
-			if M.current_query ~= {} then
-				local buffers_to_search = M.updated_buffers_by_query()
-				if #query > 0 then
-					search_term = table.concat(query):lower()
-				end
-				if #query == 0 then
-					filtered_buffers = M.updated_buffers_by_query()
-				end
-				if search_term ~= nil then
-					filtered_buffers = {}
-					for _, buf_item in ipairs(buffers_to_search) do
-						if buf_item.name:lower():find(search_term, 1, true) or
-								buf_item.path:lower():find(search_term, 1, true) then
-							table.insert(filtered_buffers, buf_item)
-						end
-					end
+		if query ~= "" then
+			filtered_buffers = {}
+			local q = query:lower()
+			for _, b in ipairs(buffers) do
+				if b.name:lower():find(q, 1, true)
+						or b.path:lower():find(q, 1, true) then
+					table.insert(filtered_buffers, b)
 				end
 			end
 		else
-			-- Based on the content on table query we filter the table 'buffers'
-			-- Creating a new table 'filtered_buffers' tha are displyed later according to what we type
-			if #query > 0 then
-				search_term = table.concat(query):lower()
-				filtered_buffers = {}
-				for _, buf_item in ipairs(buffers) do
-					if buf_item.name:lower():find(search_term, 1, true) or
-							buf_item.path:lower():find(search_term, 1, true) then
-						table.insert(filtered_buffers, buf_item)
-					end
-				end
-			else
-				filtered_buffers = buffers -- Show all buffers when no search term
-			end
+			filtered_buffers = buffers
 		end
 
-		vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+		selected_index = math.min(selected_index, math.max(1, #filtered_buffers))
 
-		-- Updates content with truncated paths
-		local lines = {}
-		for _, buf_item in ipairs(filtered_buffers) do
-			-- local status = buf_item.is_open and " " or "🖹"
-			local status = buf_item.is_open and "🖹" or "🖹"
-			-- Uses truncate_path to ensure the file name is visible
-			local truncated_path = truncate_path(buf_item.path, 69) -- Fit within window width
-
-			local line = string.format("%s %s", status, truncated_path)
-			table.insert(lines, line)
+		-- corrige offset se necessário
+		if selected_index <= view_offset then
+			view_offset = selected_index - 1
+		elseif selected_index > view_offset + max_visible then
+			view_offset = selected_index - max_visible
 		end
-		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
-		-- Lock the buffer edition for safety
-		vim.api.nvim_set_option_value('modifiable', false, { buf = buf })
+		view_offset = math.max(0, math.min(view_offset, math.max(0, #filtered_buffers - max_visible)))
 
+		vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 
-		-- Apply highlight to matches
-		if #query > 0 then
-			local search_lower = table.concat(query):lower()
-			--- We go through each of the lines in filtered_buffers
-			for i, _ in ipairs(filtered_buffers) do
-				local line_text = lines[i]
-				local line_lower = line_text:lower()
+		local virt_lines = {}
 
-				local start_pos = 1
-				while true do
-					local match_start, match_end = line_lower:find(search_lower, start_pos, true)
-					if not match_start then break end
-					--- Apply to some range of text related to the buffer, the highlight group
-					vim.hl.range(
-						buf,
-						ns_id,
-						'PickBufferMatch',
-						{ i - 1, match_start - 1 },
-						{ i - 1, match_end },
-						{ inclusive = false }
-					)
-					start_pos = match_end + 1
-				end
-			end
+		local start = view_offset + 1
+		local finish = math.min(#filtered_buffers, start + max_visible - 1)
+
+		for i = start, finish do
+			local b = filtered_buffers[i]
+
+			local text = string.format(
+				"%2d  %s",
+				i,
+				truncate_path(b.path, width - 6)
+			)
+
+			text = text .. string.rep(" ", width - #text)
+
+			local hl = (i == selected_index) and "Visual" or "Normal"
+
+			table.insert(virt_lines, {
+				{ text, hl },
+			})
 		end
-		-- Move the cursor to the selected item
-		vim.api.nvim_win_set_cursor(win, { selected_index, 0 })
-		-- Refresh the buffer or window with all the new settings like selected_index highlight and etc...
-		vim.cmd("redraw")
+
+		vim.api.nvim_buf_set_extmark(buf, ns, 0, 0, {
+			virt_lines = virt_lines,
+			virt_lines_above = false,
+			hl_eol = true,
+		})
 	end
-	-----------------------------------------------------------------------------------------------------
 
-
-
-	-- Call update_display after we create it
 	update_display()
 
+	------------------------------------------------------------------
+	-- realtime input
+	------------------------------------------------------------------
+	vim.api.nvim_create_autocmd("InsertCharPre", {
+		buffer = buf,
+		callback = function()
+			local ch = vim.v.char
+			query = query .. ch
+		end,
+	})
+	vim.api.nvim_create_autocmd("TextChangedI", {
+		buffer = buf,
+		callback = function()
+			vim.api.nvim_buf_set_lines(buf, 0, 1, false, { "" })
+			vim.api.nvim_win_set_cursor(win, { 1, 0 })
 
-	-- Main Loop
-	while true do
-		local ok, char_str = pcall(vim.fn.getcharstr)
-		if not ok then break end
-		-- Detect Alt+Number (special keys)
-		-- That logical block will catch every char Array that are sent by 'vim.fn.getcharstr'
-		-- and process each BYTE seatches for matchs that represente the keybindings ALT + [1-9]
-		-- and if that matchs happen we catch the number which comes with and open the buffer with that number
-		if #char_str == 4 then
-			local byte1, byte2, byte3, byte4 = char_str:byte(1), char_str:byte(2), char_str:byte(3), char_str:byte(4)
-
-			-- Exactly default: <80><fc>^H[1-9]
-			if byte1 == 128 and byte2 == 252 and byte3 == 8 and byte4 >= 49 and byte4 <= 57 then
-				local ctrl_number = byte4 - 48 -- Convert ASCII to number (49->1, 50->2, etc.)
-				vim.schedule(function()
-					if ctrl_number <= #filtered_buffers then
-						if M.config.opt_feature.buffers_trail then
-							table.insert(M.current_query, search_term)
-							M.flag_confirmation = true
-						end
-
-						M._select_buffer(filtered_buffers[ctrl_number].number)
-					end
-				end)
-				break
-			end
-		end
-
-		-- Detect backspaces (all variants)
-		local is_backspace = char_str == '\8' or char_str == '\127' or char_str:find("kb") or char_str:find("<80>")
-		-- Check keys by their string representation
-		if char_str == '\12' then -- Ctrl+l (form feed)
-			vim.schedule(function()
-				if #filtered_buffers > 0 then
-					if M.config.opt_feature.buffers_trail then
-						table.insert(M.current_query, search_term)
-						M.flag_confirmation = true
-					end
-
-					M._select_buffer(filtered_buffers[selected_index].number)
-				end
-			end)
-			break
-			-- elseif char_str == ' ' then -- space
-			--   vim.schedule(function()
-			--     if #filtered_buffers > 0 then
-			--       -- M.set_last_buffer(vim.api.nvim_get_current_buf())
-			--
-			--      if M.config.opt_feature.buffers_trail then
-			--        M.buffers_history = filtered_buffers
-			--
-			--        table.insert(M.current_query, search_term)
-			--        M.flag_confirmation = true
-			--      end
-			--      -- M.current_query = search_term
-			--      -- M.flag_confirmation = true
-			--       M._select_buffer(filtered_buffers[selected_index].number)
-			--     end
-			--   end)
-			--   break
-			-- elseif char_str == 'O' then
-			--   vim.schedule(function()
-			--     if #filtered_buffers > 0 then
-			--       if M.config.opt_feature.buffers_trail then
-			--         table.insert(M.current_query, search_term)
-			--         M.flag_confirmation = true
-			--       end
-			--
-			--       M._select_buffer(filtered_buffers[selected_index].number)
-			--     end
-			--   end)
-			--   break
-		elseif char_str == '#' then
-			-- update_display()
-
-			vim.api.nvim_win_close(win, true)
-			vim.schedule(function()
-				M.pick_files_system()
-			end)
-			return
-
-			-- break
-			-- elseif char_str == 'J' then -- J
-			--   selected_index = math.min(#filtered_buffers, selected_index + 1)
-			--   update_display()
-			-- elseif char_str == 'K' then -- K
-			--   selected_index = math.max(1, selected_index - 1)
-			--   update_display()
-			-- elseif char_str == '\10' then -- Ctrl+j (line feed)
-			--   selected_index = math.min(#filtered_buffers, selected_index + 1)
-			--   update_display()
-			-- elseif char_str == '\11' then -- Ctrl+k (vertical tab)
-			--   selected_index = math.max(1, selected_index - 1)
-			--   update_display()
-		elseif char_str == '\14' then -- Ctrl+n (shift out)
-			selected_index = math.min(#filtered_buffers, selected_index + 1)
-			update_display()
-		elseif char_str == '\16' then -- Ctrl+p (data link escape)
-			selected_index = math.max(1, selected_index - 1)
-			update_display()
-		elseif char_str == '\9' then -- TAB
-			selected_index = (selected_index % #filtered_buffers) + 1
-			update_display()
-			-- elseif tonumber(char_str) then -- Numbers 0-9
-			--   local num = tonumber(char_str)
-			--   if num <= #filtered_buffers then
-			--     selected_index = num
-			--     update_display()
-			--   end
-		elseif char_str == '\27' then -- Escape
-			if M.config.opt_feature.buffers_trail then
-				table.insert(M.current_query, search_term)
-				M.flag_confirmation = true
-			end
-
-			break
-		elseif char_str == '\13' then -- Enter
-			vim.schedule(function()
-				if #filtered_buffers > 0 then
-					-- M.set_last_buffer(vim.api.nvim_get_current_buf())
-
-					if M.config.opt_feature.buffers_trail then
-						table.insert(M.current_query, search_term)
-						M.flag_confirmation = true
-					end
-
-					M._select_buffer(filtered_buffers[selected_index].number)
-				end
-			end)
-			break
-		elseif is_backspace then
-			if #query > 0 then
-				table.remove(query)
-				selected_index = 1
-				update_display()
-			elseif #query == 0 and M.config.opt_feature.buffers_trail then
-				M.current_query = {}
-				M.flag_confirmation = false
-				update_display()
-			end
-			-- Search characters i.e. that character typed only will be add to 'query'
-			-- if the characters size was equas to 1 and if it was a character that is NOT a white space
-		elseif #char_str == 1 and char_str:match('%S') then
-			table.insert(query, char_str)
 			selected_index = 1
+			view_offset = 0
+
+			update_display()
+			update_title()
+		end,
+	})
+
+	local function pop_char()
+		query = query:sub(1, -2)
+	end
+
+	vim.keymap.set("i", "<BS>", function()
+		pop_char()
+		update_display()
+		update_title()
+	end, { buffer = buf, nowait = true })
+
+	vim.keymap.set("i", "<C-h>", function()
+		pop_char()
+		update_display()
+		update_title()
+	end, { buffer = buf, nowait = true })
+
+
+
+	------------------------------------------------------------------
+	-- actions
+	------------------------------------------------------------------
+	local actions = {}
+
+	function actions.next()
+		if selected_index < #filtered_buffers then
+			selected_index = selected_index + 1
 			update_display()
 		end
 	end
-	--- When some action like entry on a buffer was called by some keybindings the main loop ends and
-	--- we execute the command to close the window
-	vim.api.nvim_win_close(win, true)
+
+	function actions.prev()
+		if selected_index > 1 then
+			selected_index = selected_index - 1
+			update_display()
+		end
+	end
+
+	local function select_buffer(index)
+		local item = filtered_buffers[index]
+		if not item then return end
+
+		vim.cmd("stopinsert")
+
+		local target = item.number
+
+		if vim.api.nvim_win_is_valid(win) then
+			vim.api.nvim_win_close(win, true)
+		end
+
+		vim.schedule(function()
+			M._select_buffer(target)
+		end)
+	end
+
+	function actions.select()
+		select_buffer(selected_index)
+	end
+
+	function actions.close()
+		if vim.api.nvim_win_is_valid(win) then
+			vim.api.nvim_win_close(win, true)
+		end
+	end
+
+	------------------------------------------------------------------
+	-- keymaps
+	------------------------------------------------------------------
+	local mappings = {
+		["<C-n>"] = actions.next,
+		["<Down>"] = actions.next,
+
+		["<C-p>"] = actions.prev,
+		["<Up>"] = actions.prev,
+
+		["<CR>"] = actions.select,
+		["<C-m>"] = actions.select,
+
+		["<Esc>"] = actions.close,
+	}
+
+	for lhs, rhs in pairs(mappings) do
+		vim.keymap.set("i", lhs, rhs, {
+			buffer = buf,
+			silent = true,
+			nowait = true,
+		})
+	end
+
+	-- Alt + número
+	for i = 1, 9 do
+		vim.keymap.set("i", "<M-" .. i .. ">", function()
+			select_buffer(i)
+		end, {
+			buffer = buf,
+			silent = true,
+			nowait = true,
+		})
+	end
+
 	M._float_win = win
 end
 
